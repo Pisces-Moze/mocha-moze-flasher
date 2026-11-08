@@ -1,0 +1,6 @@
+__pycache__/
+*.pyc
+image/
+runtime/
+platform-tools/
+mocha-backups/
