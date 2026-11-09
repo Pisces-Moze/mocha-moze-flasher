@@ -55,6 +55,9 @@ def main(argv=None):
     subprocess.run([sys.executable, str(Path(__file__).with_name('build-source-kernel.py')),
                     '--workspace', str(sources), '--output', str(kernel), '--jobs', str(args.jobs),
                     '--lock', str(lock)], check=True)
+    subprocess.run([sys.executable, str(Path(__file__).with_name('build-source-boot.py')),
+                    '--workspace', str(sources), '--output', str(work/'boot'), '--jobs', str(args.jobs),
+                    '--lock', str(lock)], check=True)
     result = preflight.inspect(lock, sources, firmware, work)
     (work/'source-build-status.json').write_text(json.dumps(result, ensure_ascii=False, indent=2)+'\n')
     print(json.dumps(result, ensure_ascii=False, indent=2))
