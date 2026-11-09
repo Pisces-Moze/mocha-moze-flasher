@@ -1,0 +1,29 @@
+{
+  "schema": 1,
+  "repositories": [
+    {
+      "name": "mocha-moze-boot",
+      "commit": "df050e190a23f898970000d9fafd1bdb6a0defee"
+    },
+    {
+      "name": "mocha-moze-linux",
+      "commit": "a6b5d6221e91eda8b51d570d28f30ed7ecb35ffc"
+    },
+    {
+      "name": "mocha-moze-drivers",
+      "commit": "2a396c5f571dc63ed1b50cbad22c99f7f5d94010"
+    },
+    {
+      "name": "mocha-moze-desktop",
+      "commit": "78f0f2cc9b7c796221a235472dcb76c5e0cfcbdb"
+    },
+    {
+      "name": "mocha-moze-debian",
+      "commit": "82b89272f2abdd33d8157b4c20297ef120dc2428"
+    },
+    {
+      "name": "mocha-moze-firmware-private",
+      "commit": "bc149ab7bd58543c161cc82eb6672138dce1fdeb"
+    }
+  ]
+}
