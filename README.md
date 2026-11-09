@@ -21,6 +21,16 @@ Windows 需要 OpenSSH（`ssh`、`ssh-keygen`）、Fastboot 与 RNDIS 驱动，�
 
 用户自行构建的包必须包含 `bundle.json` 及所列七个文件；程序在设备写入前核验文件哈希、型号和布局。成功后首次启动直接进入桌面；默认账户和密码都是 `mocha`，请尽快在终端运行 `passwd` 修改。
 
+## 自动源码准备（开发阶段）
+
+在 Linux 构建机上可使用下面的入口自动拉取固定版本源码、下载并校验已匹配的固件、构建内核并输出预检报告：
+
+```sh
+python3 tools/bootstrap-source-build.py --work ~/mocha-build --jobs 4
+```
+
+该命令不会访问平板。完整桌面与镜像组装尚未实现，命令完成内核阶段后仍会以非零状态结束，**不会自动刷机**；请勿把内核产物当成完整系统。`--work` 必须是尚不存在的 Linux 文件系统目录，工具链及 20 GiB 空间须提前准备。
+
 ## 获取系统源码
 
 五个系统源码仓库与已公开固件仓库的 GitHub 主分支已固定到 `sources.lock.json` 中的完整提交号。安装 Git 后，可在空目录中拉取：
@@ -31,21 +41,22 @@ python3 tools/fetch-sources.py --dest ~/mocha-sources
 
 拉取需要在 Linux 或 WSL 的 Linux 文件系统中运行，不能使用 Windows 盘符或 `/mnt/c`：内核源码包含 Windows 不允许检出的文件名。脚本拒绝覆盖非空目录，并在每次检出后验证提交号。
 
-拉取后可校验并暂存公开固件中的蓝牙和扬声器资产，并从 Debian 固定版本下载经哈希核对的 Wi-Fi 固件及许可，再运行只读预检。每台设备的板级数据和 Nouveau GK20A 固件仍须单独准备；不能直接将 MIUI 的 GPU 微码改名使用。当前完整桌面组装器尚未完成，预检会返回非零：
+拉取后可校验并暂存公开固件中的蓝牙和扬声器资产，并从 Debian 固定版本下载经哈希核对的 Wi-Fi 与 Nouveau GK20A 固件及其许可，再运行只读预检。每台设备的 Wi-Fi 板级数据仍须单独准备；不能直接将 MIUI 的 GPU 微码改名使用。当前完整桌面组装器尚未完成，预检会返回非零：
 
 ```sh
-python3 tools/stage-public-firmware.py --source ~/mocha-sources/mocha-moze-firmware-private --output /path/to/staged-firmware --fetch-wifi
+python3 tools/stage-public-firmware.py --source ~/mocha-sources/mocha-moze-firmware-private --output /path/to/staged-firmware --fetch-wifi --fetch-gpu
 python3 tools/preflight-source-build.py --workspace ~/mocha-sources --firmware-dir /path/to/staged-firmware --output-parent /path/to/build
 python3 tools/build-source-kernel.py --workspace ~/mocha-sources --output /path/to/build/kernel --jobs 4
 ```
 
-第二条命令仅构建固定版本的内核、模块和设备树，不操作平板。**拉取源码还不会生成镜像或执行刷机**：目前镜像构建器依赖已验证的离线系统副本，完整桌面、固件和驱动的源码构建与组装尚未贯通；固定提交也不代表它们共同构成已验收的发行版本。
+第三条命令仅构建固定版本的内核、模块和设备树，不操作平板。**拉取源码还不会生成镜像或执行刷机**：目前镜像构建器依赖已验证的离线系统副本，完整桌面、固件和驱动的源码构建与组装尚未贯通；固定提交也不代表它们共同构成已验收的发行版本。
 
 ## 开发与验证
 
 `tools/flash-distribution.py` 默认仅检查并展示计划；维护者可以用 `--probe --allow-candidate` 启动只读维护环境并备份 GPT/LNX。构建和镜像内容边界见 [发行说明](docs/DISTRIBUTION.md)。平板固件、私有密钥、用户数据及模型不在此仓库中。
 
 ```powershell
+python tools/test-bootstrap-source-build.py
 python tools/test-fetch-sources.py
 python tools/test-preflight-source-build.py
 python tools/test-build-source-kernel.py
