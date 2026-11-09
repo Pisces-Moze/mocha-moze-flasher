@@ -37,6 +37,12 @@ def main(argv=None):
     env=os.environ.copy();env['JOBS']=str(a.jobs);env['GIT_TERMINAL_PROMPT']='0'
     for mode in ('ram','emmc'):
         target=out/mode
+        if mode == 'emmc':
+            # Both modes use the same checked-out upstream tag. Clone the
+            # local Git objects rather than downloading U-Boot a second time.
+            target.mkdir()
+            subprocess.run(['git','clone','--no-hardlinks','--branch','v2026.07',
+                            str(out/'ram/source'),str(target/'source')],check=True,env=env)
         subprocess.run(['bash',str(script),str(target),mode],check=True,env=env)
         subprocess.run(['sha256sum','-c','SHA256SUMS'],cwd=target,check=True)
         subprocess.run([sys.executable,str(pack),str(target/'u-boot-dtb.bin'),

@@ -23,13 +23,13 @@ Windows 需要 OpenSSH（`ssh`、`ssh-keygen`）、Fastboot 与 RNDIS 驱动，�
 
 ## 自动源码准备（开发阶段）
 
-在 Linux 构建机上可使用下面的入口自动拉取固定版本源码、下载并校验已匹配的固件、构建内核和 U-Boot 并输出预检报告：
+在 Linux 构建机上可使用下面的入口自动拉取固定版本源码、下载并校验已匹配的固件、构建内核、外部驱动和 U-Boot 并输出预检报告：
 
 ```sh
 python3 tools/bootstrap-source-build.py --work ~/mocha-build --jobs 4
 ```
 
-该命令不会访问平板。完整桌面与镜像组装尚未实现，命令完成内核与 U-Boot 阶段后仍会以非零状态结束，**不会自动刷机**；请勿把内核产物当成完整系统。`--work` 必须是尚不存在的 Linux 文件系统目录，工具链及 20 GiB 空间须提前准备。
+该命令不会访问平板。完整桌面与镜像组装尚未实现，命令完成内核、驱动与 U-Boot 阶段后仍会以非零状态结束，**不会自动刷机**；请勿把内核产物当成完整系统。`--work` 必须是尚不存在的 Linux 文件系统目录，需要 Python 3.12 或更新版本、构建工具链及至少 20 GiB 空间。可追加 `--device-root /path/to/offline-root`，从本人已检查的离线系统副本提取板级数据；目前无法直接从 Fastboot 自动获取。
 
 ## 获取系统源码
 
@@ -37,6 +37,7 @@ python3 tools/bootstrap-source-build.py --work ~/mocha-build --jobs 4
 
 ```sh
 python3 tools/fetch-sources.py --dest ~/mocha-sources
+python3 tools/fetch-desktop-upstream.py --workspace ~/mocha-sources --output /path/to/build/desktop-upstream
 ```
 
 拉取需要在 Linux 或 WSL 的 Linux 文件系统中运行，不能使用 Windows 盘符或 `/mnt/c`：内核源码包含 Windows 不允许检出的文件名。脚本拒绝覆盖非空目录，并在每次检出后验证提交号。
@@ -47,10 +48,11 @@ python3 tools/fetch-sources.py --dest ~/mocha-sources
 python3 tools/stage-public-firmware.py --source ~/mocha-sources/mocha-moze-firmware-private --output /path/to/staged-firmware --fetch-wifi --fetch-gpu
 python3 tools/preflight-source-build.py --workspace ~/mocha-sources --firmware-dir /path/to/staged-firmware --output-parent /path/to/build
 python3 tools/build-source-kernel.py --workspace ~/mocha-sources --output /path/to/build/kernel --jobs 4
+python3 tools/build-source-drivers.py --workspace ~/mocha-sources --kernel /path/to/build/kernel --output /path/to/build/drivers --jobs 2
 python3 tools/build-source-boot.py --workspace ~/mocha-sources --output /path/to/build/boot --jobs 2
 ```
 
-第三、四条命令分别构建固定版本的内核与 U-Boot，不操作平板。**拉取源码还不会生成镜像或执行刷机**：目前镜像构建器依赖已验证的离线系统副本，完整桌面、固件和驱动的源码构建与组装尚未贯通；固定提交也不代表它们共同构成已验收的发行版本。
+第三至五条命令分别构建固定版本的内核、外部驱动与 U-Boot，不操作平板。 对已有设备的离线系统副本，可使用 `python3 tools/extract-board-data.py --root /path/to/offline-root --firmware-dir /path/to/staged-firmware` 提取该设备自己的 Wi-Fi 板级数据；它拒绝缺失或冲突的候选文件，也不打印设备标识。当前尚未将此步骤接入 Fastboot 自动采集。**拉取源码还不会生成镜像或执行刷机**：目前镜像构建器依赖已验证的离线系统副本，完整桌面、固件和驱动的源码构建与组装尚未贯通；固定提交也不代表它们共同构成已验收的发行版本。
 
 ## 开发与验证
 
@@ -61,8 +63,10 @@ python tools/test-bootstrap-source-build.py
 python tools/test-fetch-sources.py
 python tools/test-preflight-source-build.py
 python tools/test-build-source-kernel.py
+python tools/test-build-source-drivers.py
 python tools/test-build-source-boot.py
 python tools/test-stage-public-firmware.py
+python tools/test-extract-board-data.py
 python tools/test-distribution.py
 python tools/test-install-recovery.py
 python tools/test-data-capacity.py

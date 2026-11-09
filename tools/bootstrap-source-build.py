@@ -26,6 +26,8 @@ def main(argv=None):
     parser.add_argument('--work', type=Path, required=True,
                         help='new Linux-filesystem directory for sources and build outputs')
     parser.add_argument('--jobs', type=int, default=4)
+    parser.add_argument('--device-root', type=Path,
+                        help='optional inspected offline device root or private copy for Wi-Fi board data')
     args = parser.parse_args(argv)
     if sys.platform != 'linux':
         parser.error('use Linux or WSL on a Linux filesystem')
@@ -36,25 +38,40 @@ def main(argv=None):
         parser.error('work directory must not exist')
     if not work.parent.is_dir():
         parser.error('work parent must already exist')
+    if args.device_root is not None:
+        device_root = args.device_root.resolve()
+        if not device_root.is_dir():
+            parser.error('device root must be an existing inspected offline directory')
+        if work.is_relative_to(device_root) or device_root.is_relative_to(work):
+            parser.error('work and device root must be separate')
     required = ('git', 'bash', 'make', 'arm-linux-gnueabihf-gcc', 'dtc',
-                'mkimage', 'bc', 'bison', 'flex', 'sha256sum', 'stat')
+                'mkimage', 'bc', 'bison', 'flex', 'sha256sum', 'stat', 'patch', 'modinfo')
     missing = [name for name in required if shutil.which(name) is None]
     if missing:
         parser.error('missing tools: ' + ', '.join(missing))
     if shutil.disk_usage(work.parent).free < 20 * 1024**3:
         parser.error('at least 20 GiB free is required')
     fetch = load('fetch_sources', 'fetch-sources.py')
+    desktop = load('desktop_upstream', 'fetch-desktop-upstream.py')
     stage = load('stage_firmware', 'stage-public-firmware.py')
+    board = load('extract_board_data', 'extract-board-data.py')
     preflight = load('source_preflight', 'preflight-source-build.py')
     fetch.check_environment(work)
     work.mkdir(mode=0o700)
     lock = Path(__file__).resolve().parents[1] / 'sources.lock.json'
     sources, firmware, kernel = work/'sources', work/'firmware', work/'kernel'
     fetch.fetch(lock, sources)
+    desktop.fetch(sources, work/'desktop-upstream',
+                  Path(__file__).resolve().parents[1]/'desktop-upstream.lock.json')
     stage.stage(sources/'mocha-moze-firmware-private', firmware, fetch_wifi=True, fetch_gpu=True)
+    if args.device_root is not None:
+        board.extract(args.device_root, firmware)
     subprocess.run([sys.executable, str(Path(__file__).with_name('build-source-kernel.py')),
                     '--workspace', str(sources), '--output', str(kernel), '--jobs', str(args.jobs),
                     '--lock', str(lock)], check=True)
+    subprocess.run([sys.executable, str(Path(__file__).with_name('build-source-drivers.py')),
+                    '--workspace', str(sources), '--kernel', str(kernel), '--output', str(work/'drivers'),
+                    '--jobs', str(args.jobs), '--lock', str(lock)], check=True)
     subprocess.run([sys.executable, str(Path(__file__).with_name('build-source-boot.py')),
                     '--workspace', str(sources), '--output', str(work/'boot'), '--jobs', str(args.jobs),
                     '--lock', str(lock)], check=True)

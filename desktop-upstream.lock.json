@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "niri": {"repository": "https://github.com/niri-wm/niri.git", "commit": "8ed0da44d974c32c6877d2f4630c314da0717ecb", "tag": "v26.04"},
+  "noctalia": {"repository": "https://github.com/noctalia-dev/noctalia.git", "commit": "6ef43e2bf2f3d5b4205ec72a72e34a2ab76ce3b4", "tag": "v5.2.1"},
+  "niri_vendor": {"url": "https://github.com/niri-wm/niri/releases/download/v26.04/niri-26.04-vendored-dependencies.tar.xz", "bytes": 40263284, "sha256": "407c525cd78710e72455c48741756857ca47dc32910a42f82cd40992a34beed6"}
+}
