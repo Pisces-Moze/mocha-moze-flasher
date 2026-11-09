@@ -37,7 +37,7 @@ python3 tools/bootstrap-source-build.py --work ~/mocha-build --jobs 4
 
 ```sh
 python3 tools/fetch-sources.py --dest ~/mocha-sources
-python3 tools/fetch-desktop-upstream.py --workspace ~/mocha-sources --output /path/to/build/desktop-upstream
+python3 tools/fetch-desktop-upstream.py --workspace ~/mocha-sources --output /path/to/build/desktop-upstream --git-mirror https://ghproxy.net/https://github.com
 ```
 
 拉取需要在 Linux 或 WSL 的 Linux 文件系统中运行，不能使用 Windows 盘符或 `/mnt/c`：内核源码包含 Windows 不允许检出的文件名。脚本拒绝覆盖非空目录，并在每次检出后验证提交号。

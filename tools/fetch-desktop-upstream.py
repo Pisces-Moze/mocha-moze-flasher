@@ -22,7 +22,7 @@ def extract_vendor(archive, destination):
         tar.extractall(destination,filter='data')
 
 
-def fetch(workspace, output, lock, vendor_file=None):
+def fetch(workspace, output, lock, vendor_file=None, git_mirror=None):
     workspace, output = Path(workspace).resolve(), Path(output).resolve()
     if output.exists() or output.is_relative_to(workspace) or workspace.is_relative_to(output):
         raise ValueError('output must be new and separate from the source workspace')
@@ -40,11 +40,18 @@ def fetch(workspace, output, lock, vendor_file=None):
     if vendor.get('url')!='https://github.com/niri-wm/niri/releases/download/v26.04/niri-26.04-vendored-dependencies.tar.xz' or vendor.get('bytes')!=40263284 or vendor.get('sha256')!='407c525cd78710e72455c48741756857ca47dc32910a42f82cd40992a34beed6':
         raise ValueError('unexpected Niri vendor lock')
     env=os.environ.copy();env['GIT_TERMINAL_PROMPT']='0'
+    if git_mirror is not None:
+        prefix=git_mirror.rstrip('/')+'/'
+        if not prefix.startswith('https://'):
+            raise ValueError('Git mirror must use HTTPS')
+        fetch_urls={name:prefix+url.removeprefix('https://github.com/') for name,(url,_) in expected.items()}
+    else:
+        fetch_urls={name:url for name,(url,_) in expected.items()}
     output.mkdir(mode=0o700)
     for name,(url,commit) in expected.items():
         dest=output/name
         subprocess.run(['git','init',str(dest)],check=True,env=env)
-        subprocess.run(['git','-C',str(dest),'remote','add','origin',url],check=True,env=env)
+        subprocess.run(['git','-C',str(dest),'remote','add','origin',fetch_urls[name]],check=True,env=env)
         subprocess.run(['git','-C',str(dest),'fetch','--depth=1','origin',commit],check=True,env=env,timeout=1800)
         subprocess.run(['git','-C',str(dest),'checkout','--detach','FETCH_HEAD'],check=True,env=env)
         actual=subprocess.check_output(['git','-C',str(dest),'rev-parse','HEAD'],text=True,env=env).strip()
@@ -71,6 +78,7 @@ def main():
     p.add_argument('--workspace',type=Path,required=True);p.add_argument('--output',type=Path,required=True)
     p.add_argument('--lock',type=Path,default=Path(__file__).resolve().parents[1]/'desktop-upstream.lock.json')
     p.add_argument('--vendor-file',type=Path,help='optional previously downloaded vendor archive')
-    a=p.parse_args();fetch(a.workspace,a.output,a.lock,a.vendor_file)
+    p.add_argument('--git-mirror',help='HTTPS prefix for GitHub Git smart HTTP, e.g. https://ghproxy.net/https://github.com')
+    a=p.parse_args();fetch(a.workspace,a.output,a.lock,a.vendor_file,a.git_mirror)
 
 if __name__=='__main__':main()
