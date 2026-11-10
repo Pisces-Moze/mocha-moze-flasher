@@ -36,7 +36,7 @@ def load_lock(path):
     return rows
 
 
-def fetch(lock, destination):
+def fetch(lock, destination, git_mirror=None):
     rows = load_lock(lock)
     check_environment(destination)
     destination = Path(destination).resolve()
@@ -48,7 +48,10 @@ def fetch(lock, destination):
     for row in rows:
         name, commit = row['name'], row['commit']
         target = destination / name
-        url = f'https://github.com/Pisces-Moze/{name}.git'
+        if git_mirror and not git_mirror.startswith('https://'):
+            raise ValueError('Git mirror must use HTTPS')
+        prefix = git_mirror.rstrip('/') if git_mirror else 'https://github.com'
+        url = f'{prefix}/Pisces-Moze/{name}.git'
         print(f'Fetching {name} at {commit}', flush=True)
         subprocess.run(['git', 'init', str(target)], check=True, env=env)
         subprocess.run(['git', '-C', str(target), 'remote', 'add', 'origin', url], check=True, env=env)
@@ -64,8 +67,9 @@ def main():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument('--dest', required=True, type=Path)
     p.add_argument('--lock', type=Path, default=Path(__file__).resolve().parents[1] / 'sources.lock.json')
+    p.add_argument('--git-mirror', help='HTTPS prefix for GitHub, e.g. https://ghproxy.net/https://github.com')
     a = p.parse_args()
-    fetch(a.lock, a.dest)
+    fetch(a.lock, a.dest, a.git_mirror)
 
 
 if __name__ == '__main__':

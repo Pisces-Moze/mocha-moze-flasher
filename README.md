@@ -26,7 +26,7 @@ Windows 需要 OpenSSH（`ssh`、`ssh-keygen`）、Fastboot 与 RNDIS 驱动，�
 在 Linux 构建机上可使用下面的入口自动拉取固定版本源码、下载并校验已匹配的固件、构建内核、外部驱动和 U-Boot 并输出预检报告：
 
 ```sh
-python3 tools/bootstrap-source-build.py --work ~/mocha-build --jobs 4
+python3 tools/bootstrap-source-build.py --work ~/mocha-build --jobs 4 --git-mirror https://ghproxy.net/https://github.com
 ```
 
 该命令不会访问平板。完整桌面与镜像组装尚未实现，命令完成内核、驱动与 U-Boot 阶段后仍会以非零状态结束，**不会自动刷机**；请勿把内核产物当成完整系统。`--work` 必须是尚不存在的 Linux 文件系统目录，需要 Python 3.12 或更新版本、构建工具链及至少 20 GiB 空间。可追加 `--device-root /path/to/offline-root`，从本人已检查的离线系统副本提取板级数据；目前无法直接从 Fastboot 自动获取。
@@ -36,7 +36,7 @@ python3 tools/bootstrap-source-build.py --work ~/mocha-build --jobs 4
 五个系统源码仓库与已公开固件仓库的 GitHub 主分支已固定到 `sources.lock.json` 中的完整提交号。安装 Git 后，可在空目录中拉取：
 
 ```sh
-python3 tools/fetch-sources.py --dest ~/mocha-sources
+python3 tools/fetch-sources.py --dest ~/mocha-sources --git-mirror https://ghproxy.net/https://github.com
 python3 tools/fetch-desktop-upstream.py --workspace ~/mocha-sources --output /path/to/build/desktop-upstream --git-mirror https://ghproxy.net/https://github.com
 ```
 
