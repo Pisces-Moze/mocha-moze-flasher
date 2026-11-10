@@ -5,6 +5,7 @@ Never runs fastboot/ssh/ssh-keygen: module-level `output` is replaced by a fake
 that only writes the requested key files. No device or network access.
 """
 import contextlib
+import hashlib
 import importlib.util
 import io
 import json
@@ -62,6 +63,25 @@ class RecoveryStateTests(unittest.TestCase):
         transport=self.mod.Transport(self.a,Path(work),Path(recovery))
         self.assertEqual(self.calls[0][-1],str(Path(recovery)/'install-key'))
         return transport
+
+    def test_wifi_backup_is_verified_before_install_continues(self):
+        with scratch() as directory:
+            root=Path(directory);folder=root/'backup';folder.mkdir()
+            (folder/'SHA256SUMS').write_text('')
+            transport=self.transport(root/'work',root/'recovery')
+            board=b'sromrev=11\nboardrev=1\nboardtype=2\n'
+            def fake_run(args,**kwargs):
+                kwargs['stdout'].write(board)
+                return SimpleNamespace(returncode=0,stderr=b'')
+            transport.remote=mock.Mock(return_value=hashlib.sha256(board).hexdigest()+'  remote\n')
+            with mock.patch.object(self.mod.subprocess,'run',side_effect=fake_run):
+                transport.backup_wifi(folder)
+            self.assertEqual((folder/'wifi-board-data.txt').read_bytes(),board)
+            self.assertIn(hashlib.sha256(board).hexdigest(),(folder/'SHA256SUMS').read_text())
+            transport.remote=mock.Mock(return_value='0'*64+'  remote\n')
+            (folder/'wifi-board-data.txt').unlink()
+            with mock.patch.object(self.mod.subprocess,'run',side_effect=fake_run):
+                with self.assertRaisesRegex(RuntimeError,'hash mismatch'):transport.backup_wifi(folder)
 
     def test_probe_never_enters_the_write_sequence(self):
         with scratch() as directory:

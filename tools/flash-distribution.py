@@ -57,6 +57,8 @@ def verify_bundle(root,allow_candidate=False):
     if manifest.get('schema')!=1 or manifest.get('device')!='xiaomi-mocha-16gb':
         raise ValueError('Unsupported bundle schema/device')
     if manifest.get('app_bytes')!=3*1024**3:raise ValueError('Expected exactly 3 GiB APP')
+    if manifest.get('wifi_board_data') not in (None,'target-capture-v1'):
+        raise ValueError('Unsupported Wi-Fi board data strategy')
     if manifest.get('release_state')!='verified' and not allow_candidate:
         raise ValueError('This candidate has not passed the desktop/flash acceptance gate')
     names={'loader.img','uImage','mocha.dtb','installer.cpio.gz','APP.img.xz','DATA.tar.xz','LNX.img'}
@@ -281,6 +283,21 @@ class Transport:
             if actual!=expected:raise RuntimeError('PC backup readback mismatch')
         (folder/'SHA256SUMS').write_text(''.join(digest(folder/name)+'  '+name+'\n' for name,_ in reads))
 
+    def backup_wifi(self,folder):
+        remote='/run/mocha-install-wifi/brcm/brcmfmac4354-sdio.nvidia,mocha.txt'
+        target=folder/'wifi-board-data.txt'
+        with target.open('xb') as stream:
+            restrict(target,0o600)
+            process=subprocess.run(self.ssh+['cat '+remote],stdout=stream,stderr=subprocess.PIPE,timeout=90)
+        if process.returncode or not 0<target.stat().st_size<=128*1024:
+            raise RuntimeError('Wi-Fi board-data backup failed before formatting')
+        actual=digest(target)
+        expected=self.remote('sha256sum '+remote).split()[0]
+        if actual!=expected:
+            raise RuntimeError('Wi-Fi board-data backup hash mismatch before formatting')
+        with (folder/'SHA256SUMS').open('a',encoding='utf-8') as checksums:
+            checksums.write(actual+'  '+target.name+'\n')
+
     def probe(self,folder):
         if self.remote('blockdev --getro /dev/mmcblk0').strip()!='1':
             raise RuntimeError('RAM installer did not keep eMMC read-only')
@@ -332,6 +349,9 @@ def main():
             plan=json.loads(transport.remote(transport.endpoint('plan')))
             transport.backup(folder,plan)
             print('GPT/LNX backups verified at',folder,flush=True)
+            if manifest.get('wifi_board_data')=='target-capture-v1':
+                print(transport.remote(transport.endpoint('capture-wifi'),timeout=90),flush=True)
+                transport.backup_wifi(folder)
             print(transport.remote(transport.endpoint('prepare','--cid',plan['cid'],
                 '--gpt-sha256',plan['gpt_sha256'],'--erase','ERASE_APP_UDA'),timeout=180))
             with lzma.open(root/'APP.img.xz','rb') as source:

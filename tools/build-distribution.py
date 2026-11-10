@@ -6,6 +6,7 @@ Existing images and source filesystems are never modified. Production status
 is intentionally NOT assigned by this builder; physical acceptance is separate.
 """
 import argparse
+import gzip
 import hashlib
 import importlib.util
 import json
@@ -14,6 +15,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+from ram_archive import read_newc
 
 
 def digest(path):
@@ -30,6 +32,17 @@ def check_build_tools():
     missing=[name for name in commands if shutil.which(name) is None]
     if missing:
         raise RuntimeError('Build host missing required tools: '+', '.join(missing))
+
+
+def check_installer_wifi_capture(path):
+    """Require a RAM installer that implements the manifest's capture strategy."""
+    entries=read_newc(gzip.decompress(path.read_bytes()))
+    required={'usr/local/libexec/distribution-ram.py':b'def capture_wifi(',
+              'usr/local/libexec/extract-board-data.py':b'def extract('}
+    for name,needle in required.items():
+        matches=[data for entry,_,data in entries if entry==name]
+        if len(matches)!=1 or needle not in matches[0]:
+            raise RuntimeError('RAM installer lacks target Wi-Fi capture: '+name)
 
 
 DATA_BLOCK=4096
@@ -98,6 +111,7 @@ def main():
     a=p.parse_args()
     if os.geteuid()!=0:p.error('Linux root required for ext4/xattrs/ownership')
     check_build_tools()
+    check_installer_wifi_capture(a.installer)
     evidence=json.loads(a.offline_evidence.read_text())
     if evidence.get('capture')!='offline-readonly-app-uda' or evidence.get('root_partition_bytes')!=3*1024**3:
         p.error('A fresh offline snapshot with a 3 GiB APP is required')
@@ -166,6 +180,7 @@ def finish_candidate(a,repo,output,raw_sha,data_bytes):
     files={path.name:{'bytes':path.stat().st_size,'sha256':digest(path)} for path in image.iterdir()}
     manifest={'schema':1,'version':a.version,'device':'xiaomi-mocha-16gb','app_bytes':3*1024**3,
         'release_state':'candidate','app_raw_sha256':raw_sha,'files':files,
+        'wifi_board_data':'target-capture-v1',
         'data_source_bytes':data_bytes,'data_expanded_base_bytes':expanded_base,
         'data_expanded_margin_bytes':expanded_margin,**capacity,
         'includes_models':False,'first_boot':'desktop-autologin',

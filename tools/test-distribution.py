@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest import mock
@@ -22,6 +23,102 @@ def load(name,file):
 
 
 class ArchiveTests(unittest.TestCase):
+    def test_new_bundle_rejects_old_ram_installer(self):
+        builder=load('build_distribution_ram_check','build-distribution.py')
+        with tempfile.TemporaryDirectory() as directory:
+            archive=Path(directory)/'installer.cpio.gz'
+            archive.write_bytes(gzip.compress(write_newc([regular('init',b'old init')])))
+            with self.assertRaisesRegex(RuntimeError,'lacks target Wi-Fi capture'):
+                builder.check_installer_wifi_capture(archive)
+            entries=[regular('usr/local/libexec/distribution-ram.py',b'def capture_wifi(args): pass'),
+                     regular('usr/local/libexec/extract-board-data.py',b'def extract(a, b): pass')]
+            archive.write_bytes(gzip.compress(write_newc(entries)))
+            builder.check_installer_wifi_capture(archive)
+
+    @unittest.skipUnless(sys.platform == 'linux','RAM installer requires Linux')
+    def test_capture_reads_before_unmount_and_never_writes_the_source(self):
+        ram=load('distribution_ram_capture','distribution-ram.py')
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); mount=root/'mounted'; mount.mkdir()
+            data=mount/'usr/lib/firmware/brcm/brcmfmac4354-sdio.nvidia,mocha.txt'
+            data.parent.mkdir(parents=True)
+            original=b'sromrev=11\nboardrev=1\nboardtype=2\nmacaddr=02:11:22:33:44:55\n'
+            data.write_bytes(original)
+            temporary=root/'temporary';temporary.mkdir()
+            current={'cid':'device-a','gpt_sha256':'original-gpt'}
+            def local_path(value):
+                return mount if str(value)=='/mnt/mocha-source-app' else Path(value)
+            with mock.patch.object(ram,'WIFI_CAPTURE',root/'capture'), \
+                 mock.patch.object(ram,'STATE',root/'state.json'), \
+                 mock.patch.object(ram,'Path',side_effect=local_path), \
+                 mock.patch.object(ram,'plan',return_value=current), \
+                 mock.patch.object(ram.tempfile,'mkdtemp',return_value=str(temporary)), \
+                 mock.patch.object(ram,'run') as command:
+                ram.capture_wifi(None)
+                self.assertEqual(command.call_args_list[0].args[:4],('mount','-t','ext4','-o'))
+                self.assertEqual(command.call_args_list[-1].args[0],'umount')
+                self.assertEqual(ram.captured_wifi(current).read_bytes(),original)
+                self.assertEqual(data.read_bytes(),original)
+                self.assertFalse(ram.STATE.exists())
+
+    @unittest.skipUnless(sys.platform == 'linux','RAM installer requires Linux')
+    def test_target_wifi_capture_is_bound_to_device_and_original_gpt(self):
+        ram=load('distribution_ram_wifi','distribution-ram.py')
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); data=root/'brcm/brcmfmac4354-sdio.nvidia,mocha.txt'
+            data.parent.mkdir(); data.write_bytes(b'sromrev=11\nboardrev=1\nboardtype=2\n')
+            import hashlib
+            metadata={'cid':'device-a','gpt_sha256':'original-gpt',
+                      'sha256':hashlib.sha256(data.read_bytes()).hexdigest()}
+            (root/'device.json').write_text(json.dumps(metadata))
+            with mock.patch.object(ram,'WIFI_CAPTURE',root):
+                self.assertEqual(ram.captured_wifi(metadata),data)
+                with self.assertRaisesRegex(RuntimeError,'another device'):
+                    ram.captured_wifi({'cid':'device-b','gpt_sha256':'original-gpt'})
+                data.write_bytes(b'tampered')
+                with self.assertRaisesRegex(RuntimeError,'verification'):
+                    ram.captured_wifi(metadata)
+
+    @unittest.skipUnless(sys.platform == 'linux','RAM installer requires Linux')
+    def test_prepare_stops_before_disk_writes_without_target_wifi_data(self):
+        ram=load('distribution_ram_prepare','distribution-ram.py')
+        current={'cid':'device-a','gpt_sha256':'original-gpt'}
+        args=type('Args',(),{'cid':'device-a','gpt_sha256':'original-gpt','erase':'ERASE_APP_UDA'})()
+        with tempfile.TemporaryDirectory() as directory, \
+             mock.patch.object(ram,'STATE',Path(directory)/'state.json'), \
+             mock.patch.object(ram,'plan',return_value=current), \
+             mock.patch.object(ram,'captured_wifi',side_effect=RuntimeError('missing')), \
+             mock.patch.object(ram,'writable') as writable:
+            with self.assertRaisesRegex(RuntimeError,'missing'):ram.prepare(args)
+            writable.assert_not_called()
+            self.assertFalse(ram.STATE.exists())
+
+    @unittest.skipUnless(sys.platform == 'linux','RAM installer requires Linux')
+    def test_prepare_retains_original_gpt_for_wifi_restoration(self):
+        ram=load('distribution_ram_state','distribution-ram.py')
+        current={'cid':'device-a','gpt_sha256':'original-gpt'}
+        args=type('Args',(),{'cid':'device-a','gpt_sha256':'original-gpt','erase':'ERASE_APP_UDA'})()
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); disk=root/'disk'; disk.touch(); sysfs=root/'sysfs'; sysfs.mkdir()
+            for number,_,start,sectors in ram.layout.NEW:
+                node=sysfs/f'mmcblk0p{number}';node.mkdir()
+                (node/'start').write_text(str(start));(node/'size').write_text(str(sectors))
+            def local_path(value):
+                return sysfs if str(value)=='/sys/class/block' else Path(value)
+            with mock.patch.object(ram,'STATE',root/'state.json'), \
+                 mock.patch.object(ram,'DISK',str(disk)), \
+                 mock.patch.object(ram,'Path',side_effect=local_path), \
+                 mock.patch.object(ram,'plan',return_value=current), \
+                 mock.patch.object(ram,'captured_wifi'), \
+                 mock.patch.object(ram,'writable'), mock.patch.object(ram,'readonly'), \
+                 mock.patch.object(ram,'run'), \
+                 mock.patch.object(ram.layout,'read_gpt',return_value=([(None,[0]*13)],b'unchanged')), \
+                 mock.patch.object(ram.layout,'replace_bounds',return_value=b'unchanged'):
+                ram.prepare(args)
+                state=json.loads(ram.STATE.read_text())
+                self.assertEqual(state['phase'],'prepared')
+                self.assertEqual(state['source_gpt_sha256'],'original-gpt')
+
     def test_missing_build_tools_fail_before_subprocess(self):
         builder=load('build_distribution_preflight','build-distribution.py')
         with mock.patch.object(builder.shutil,'which',return_value=None), \

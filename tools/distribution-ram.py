@@ -16,6 +16,7 @@ import re
 import subprocess
 import sys
 import tempfile
+import shutil
 
 spec=importlib.util.spec_from_file_location('layout',Path(__file__).with_name('grow-app-offline.py'))
 layout=importlib.util.module_from_spec(spec);spec.loader.exec_module(layout)
@@ -24,6 +25,7 @@ APP='/dev/mmcblk0p26'
 UDA='/dev/mmcblk0p29'
 STATE=Path('/run/mocha-install-state.json')
 DATA_MOUNT=Path('/mnt/mocha-install-data')
+WIFI_CAPTURE=Path('/run/mocha-install-wifi')
 DATA_SAFETY_BYTES=256*1024**2
 MAX_DATA_BYTES=16*1024**3
 
@@ -90,12 +92,51 @@ def readonly():
     subprocess.run(['blockdev','--setro',DISK],capture_output=True)
 
 
+def captured_wifi(current):
+    metadata=json.loads((WIFI_CAPTURE/'device.json').read_text())
+    data=WIFI_CAPTURE/'brcm/brcmfmac4354-sdio.nvidia,mocha.txt'
+    if (metadata.get('cid')!=current['cid'] or metadata.get('gpt_sha256')!=current['gpt_sha256']
+            or data.is_symlink() or not data.is_file()):
+        raise RuntimeError('Target Wi-Fi board data is unavailable or belongs to another device')
+    if hashlib.sha256(data.read_bytes()).hexdigest()!=metadata.get('sha256'):
+        raise RuntimeError('Captured Wi-Fi board data failed verification')
+    return data
+
+
+def capture_wifi(args):
+    current=plan()
+    if STATE.exists() or WIFI_CAPTURE.exists():
+        raise RuntimeError('Existing installer state must be inspected before capturing board data')
+    mount=Path('/mnt/mocha-source-app');mount.mkdir(parents=True,exist_ok=True)
+    temporary=Path(tempfile.mkdtemp(prefix='mocha-wifi-',dir='/run'))
+    mounted=False
+    try:
+        run('mount','-t','ext4','-o','ro,noload',APP,str(mount));mounted=True
+        board_spec=importlib.util.spec_from_file_location('board_data',Path(__file__).with_name('extract-board-data.py'))
+        board=importlib.util.module_from_spec(board_spec);board_spec.loader.exec_module(board)
+        board.extract(mount,temporary)
+        data=temporary/'brcm/brcmfmac4354-sdio.nvidia,mocha.txt'
+        metadata={'cid':current['cid'],'gpt_sha256':current['gpt_sha256'],
+                  'sha256':hashlib.sha256(data.read_bytes()).hexdigest()}
+        (temporary/'device.json').write_text(json.dumps(metadata)+'\n')
+        (temporary/'device.json').chmod(0o600)
+        run('umount',str(mount));mounted=False
+        temporary.rename(WIFI_CAPTURE)
+    finally:
+        try:
+            if mounted:run('umount',str(mount))
+        finally:
+            if temporary.exists():shutil.rmtree(temporary)
+    print('TARGET_WIFI_BOARD_DATA_CAPTURED')
+
+
 def prepare(args):
     current=plan()
     if args.erase!='ERASE_APP_UDA' or current['gpt_sha256']!=args.gpt_sha256 or current['cid']!=args.cid:
         raise RuntimeError('Device identity/GPT/erase acknowledgement mismatch')
     if STATE.exists():raise RuntimeError('Install state already exists; inspect before retry')
-    STATE.write_text(json.dumps({'phase':'preparing','cid':args.cid}))
+    captured_wifi(current)
+    STATE.write_text(json.dumps({'phase':'preparing','cid':args.cid,'source_gpt_sha256':current['gpt_sha256']}))
     writable()
     try:
         with open(DISK,'r+b',buffering=0) as disk:
@@ -120,7 +161,9 @@ def prepare(args):
         if changed:
             with open(DISK+'p27','r+b',buffering=0) as disk:
                 layout.write_at(disk,0,b'\0'*(9009*512));os.fsync(disk.fileno())
-        STATE.write_text(json.dumps({'phase':'prepared','cid':args.cid}))
+        state=json.loads(STATE.read_text())
+        state['phase']='prepared'
+        STATE.write_text(json.dumps(state))
     finally:readonly()
     print('GPT_AND_DATA_FORMAT_VERIFIED')
 
@@ -210,9 +253,11 @@ def provision_wifi_nvram(root):
 
 
 def finalize(args):
-    guard()
-    if json.loads(STATE.read_text())['phase']!='data-verified':raise RuntimeError('Data restore required')
+    cid=guard()
+    state=json.loads(STATE.read_text())
+    if state['phase']!='data-verified':raise RuntimeError('Data restore required')
     if not 0<args.bytes<=40960*512:raise RuntimeError('Invalid LNX size')
+    captured=captured_wifi({'cid':cid,'gpt_sha256':state.get('source_gpt_sha256')})
     # Fail closed before changing the default boot image.
     mount=Path('/mnt/mocha-install-app');mount.mkdir(parents=True,exist_ok=True)
     run('mount','-o','ro,noload',APP,str(mount))
@@ -231,7 +276,18 @@ def finalize(args):
         # board NVRAM before the first real boot can probe brcmfmac.
         run('mount','-t','ext4',APP,str(mount))
         try:
-            provision_wifi_nvram(mount)
+            destination=mount/'usr/lib/firmware/brcm/brcmfmac4354-sdio.nvidia,mocha.txt'
+            if (destination.is_symlink() or not destination.parent.is_dir()
+                    or not destination.parent.resolve().is_relative_to(mount.resolve())):
+                raise RuntimeError('Invalid Wi-Fi firmware destination')
+            fd,name=tempfile.mkstemp(prefix='.mocha-nvram-',dir=destination.parent)
+            temporary=Path(name)
+            try:
+                with os.fdopen(fd,'wb') as stream:
+                    os.fchmod(stream.fileno(),0o644)
+                    stream.write(captured.read_bytes());stream.flush();os.fsync(stream.fileno())
+                temporary.replace(destination)
+            finally:temporary.unlink(missing_ok=True)
         finally:
             run('umount',str(mount))
         print('WIFI_NVRAM_PERSONALIZED',flush=True)
@@ -243,7 +299,7 @@ def finalize(args):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('action',choices=('plan','prepare','write-app','restore-data','finalize'))
+    p.add_argument('action',choices=('plan','capture-wifi','prepare','write-app','restore-data','finalize'))
     p.add_argument('--cid');p.add_argument('--gpt-sha256');p.add_argument('--erase')
     p.add_argument('--sha256');p.add_argument('--bytes',type=int);p.add_argument('--expanded-bytes',type=int)
     a=p.parse_args()

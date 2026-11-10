@@ -38,7 +38,7 @@ def main():
     ino=max(fields[0] for _,fields,_ in result)+1
     additions=[('root/.ssh/authorized_keys',b'',0o100600),
                ('usr/bin/dropbearkey',keygen,0o100755)]
-    for name in ('distribution-ram.py','grow-app-offline.py'):
+    for name in ('distribution-ram.py','grow-app-offline.py','extract-board-data.py'):
         additions.append(('usr/local/libexec/'+name,(repo/'tools'/name).read_bytes().replace(b'\r\n',b'\n'),0o100755))
     # The maintenance image must already include these parent directories.
     parents={name for name,fields,_ in result if fields[1]&0o170000==0o040000}
