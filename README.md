@@ -31,7 +31,7 @@ Windows 需要 OpenSSH（`ssh`、`ssh-keygen`）、Fastboot 与 RNDIS 驱动，�
 python3 tools/bootstrap-source-build.py --work ~/mocha-build --jobs 4 --git-mirror https://ghproxy.net/https://github.com --git-mirror-fallback https://ghproxy.vip/https://github.com
 ```
 
-该命令不会访问平板。完整桌面与镜像组装尚未实现，命令完成内核、驱动与 U-Boot 阶段后仍会以非零状态结束，**不会自动刷机**；请勿把内核产物当成完整系统。`--work` 必须是尚不存在的 Linux 文件系统目录，需要 Python 3.12 或更新版本、构建工具链及至少 20 GiB 空间。可追加 `--device-root /path/to/offline-root`，从本人已检查的离线系统副本提取板级数据。支持 `target-capture-v1` 的候选安装包会在 Fastboot 临时启动的 RAM 环境中从目标设备自动提取板级数据；该新路径尚需实机验收。
+该命令不会访问平板。完整桌面与镜像组装尚未实现，命令完成内核、驱动与 U-Boot 阶段后仍会以非零状态结束，**不会自动刷机**；请勿把内核产物当成完整系统。`--work` 必须是尚不存在的 Linux 文件系统目录，需要 Python 3.12 或更新版本、构建工具链及至少 20 GiB 空间。可追加 `--device-root /path/to/offline-root`，从本人已检查的离线系统副本提取板级数据。支持 `target-capture-v1` 的候选安装包会在 Fastboot 临时启动的 RAM 环境中从目标设备自动提取板级数据；已在一台原型机上完成只读采集与电脑备份校验，格式化后的恢复环节仍需实机验收。
 
 ## 获取系统源码
 
