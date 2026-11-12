@@ -106,6 +106,21 @@ class RecoveryStateTests(unittest.TestCase):
             transport.stream.assert_not_called()
             transport._write_state.assert_called_once_with('probe-verified',strict=True)
 
+    def test_wifi_probe_only_captures_and_backs_up_with_disk_read_only(self):
+        transport=mock.Mock()
+        transport.endpoint.side_effect=lambda name:name
+        transport.remote.side_effect=['1','{"app_bytes":3221225472}','captured','1']
+        folder=Path('test-backup')
+        with contextlib.redirect_stdout(io.StringIO()):
+            self.mod.Transport.probe(transport,folder,capture_wifi=True)
+        self.assertEqual(transport.endpoint.call_args_list,[mock.call('plan'),mock.call('capture-wifi')])
+        transport.backup_wifi.assert_called_once_with(folder)
+        self.assertEqual(transport.remote.call_args_list,[
+            mock.call('blockdev --getro /dev/mmcblk0'),mock.call('plan'),
+            mock.call('capture-wifi',timeout=90),mock.call('blockdev --getro /dev/mmcblk0')])
+        transport.stream.assert_not_called()
+        transport._write_state.assert_called_once_with('probe-verified',strict=True)
+
     def test_non_utf8_fastboot_diagnostic_is_readable(self):
         result=load_flash().output([sys.executable,'-c',
                                     "import sys;sys.stderr.buffer.write(b'booting \\xff')"])

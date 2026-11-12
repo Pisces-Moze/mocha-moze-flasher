@@ -80,6 +80,8 @@ sudo python3 tools/build-source-distribution.py --stage /path/to/new-stage --out
 
 `tools/flash-distribution.py` 默认仅检查并展示计划；维护者可以用 `--probe --allow-candidate` 启动只读维护环境并备份 GPT/LNX。构建和镜像内容边界见 [发行说明](docs/DISTRIBUTION.md)。平板固件、私有密钥、用户数据及模型不在此仓库中。
 
+对于支持 `target-capture-v1` 的候选包，可额外指定 `--probe-wifi`，在只读检查时提取并在电脑上校验备份当前设备的 Wi-Fi 板级数据。该数据留在本机备份目录，不要公开分享；之后若要正式安装，应先重新冷启动进入原厂 Fastboot。
+
 ```powershell
 python tools/test-bootstrap-source-build.py
 python tools/test-audit-source-desktop.py

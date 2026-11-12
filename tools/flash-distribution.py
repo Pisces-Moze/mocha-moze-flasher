@@ -298,15 +298,20 @@ class Transport:
         with (folder/'SHA256SUMS').open('a',encoding='utf-8') as checksums:
             checksums.write(actual+'  '+target.name+'\n')
 
-    def probe(self,folder):
+    def probe(self,folder,capture_wifi=False):
         if self.remote('blockdev --getro /dev/mmcblk0').strip()!='1':
             raise RuntimeError('RAM installer did not keep eMMC read-only')
         plan=json.loads(self.remote(self.endpoint('plan')))
         self.backup(folder,plan)
+        if capture_wifi:
+            print(self.remote(self.endpoint('capture-wifi'),timeout=90),flush=True)
+            self.backup_wifi(folder)
         if self.remote('blockdev --getro /dev/mmcblk0').strip()!='1':
             raise RuntimeError('eMMC read-only check failed after backup')
         self._write_state('probe-verified',strict=True)
         print('RAM_PROBE_VERIFIED: eMMC read-only, geometry and PC backups checked.',flush=True)
+        if capture_wifi:
+            print('Wi-Fi board data was verified and backed up. Cold boot before a later installation.',flush=True)
         print('The tablet remains in RAM maintenance. Session files:',self.recovery,flush=True)
 
 
@@ -319,15 +324,20 @@ def main():
                       help='Boot RAM, verify the read-only plan and save GPT/LNX backups')
     p.add_argument('--resume-loader',action='store_true',
                    help='Resume a read-only probe from the already started RAM U-Boot')
+    p.add_argument('--probe-wifi',action='store_true',
+                   help='Also capture and back up this device Wi-Fi board data read-only')
     p.add_argument('--erase',choices=['APP_UDA']);p.add_argument('--allow-candidate',action='store_true')
     p.add_argument('--fastboot',default='fastboot');p.add_argument('--ssh',default='ssh')
     p.add_argument('--ssh-keygen',default='ssh-keygen')
     p.add_argument('--backup',type=Path,default=Path('mocha-backups')/time.strftime('%Y%m%d-%H%M%S'))
     a=p.parse_args()
     if a.resume_loader and not a.probe:p.error('--resume-loader requires --probe')
+    if a.probe_wifi and not a.probe:p.error('--probe-wifi requires --probe')
     if a.install and a.erase!='APP_UDA':p.error('--install requires --erase APP_UDA; APP/UDA/cache data will be lost')
     if a.erase and not a.install:p.error('--erase is only valid with --install')
     root=a.bundle.resolve();manifest=verify_bundle(root,a.allow_candidate)
+    if a.probe_wifi and manifest.get('wifi_board_data')!='target-capture-v1':
+        p.error('--probe-wifi requires a bundle with target-capture-v1 support')
     print('Verified bundle:',manifest['version'],'APP: 3 GiB; UDA: remaining validated 16 GB layout')
     if not (a.install or a.probe):
         print('PLAN ONLY: no device commands. Install with --install --erase APP_UDA after backing up personal data.');return
@@ -344,7 +354,8 @@ def main():
             transport=Transport(a,Path(temporary),recovery)
             transport.boot(root)
             if a.probe:
-                transport.probe(folder)
+                if a.probe_wifi:transport.probe(folder,capture_wifi=True)
+                else:transport.probe(folder)
                 return
             plan=json.loads(transport.remote(transport.endpoint('plan')))
             transport.backup(folder,plan)
