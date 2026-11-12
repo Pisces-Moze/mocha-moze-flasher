@@ -56,6 +56,8 @@ python3 tools/build-source-boot.py --workspace ~/mocha-sources --output /path/to
 
 第三至五条命令分别构建固定版本的内核、外部驱动与 U-Boot，不操作平板。对已有设备的离线系统副本，可使用 `python3 tools/extract-board-data.py --root /path/to/offline-root --firmware-dir /path/to/staged-firmware` 提取该设备自己的 Wi-Fi 板级数据；它拒绝缺失或冲突的候选文件，也不打印设备标识。**拉取源码还不会生成镜像或执行刷机**：目前镜像构建器依赖已验证的离线系统副本，完整桌面、固件和驱动的源码构建与组装尚未贯通；固定提交也不代表它们共同构成已验收的发行版本。
 
+源码生成的基础 rootfs 完成后，可用 `sudo python3 tools/install-source-desktop-deps.py --root /path/to/rootfs --proot /path/to/proot --qemu /path/to/qemu-arm` 安装桌面运行依赖。它要求基础 rootfs 构建标记，使用 rootfs 中配置的 Debian 镜像，并在安装期间禁止服务自动启动；调用前后会检查 dpkg 状态。此命令不构建桌面程序，也不适用于正在使用的系统。
+
 对已准备好的源码构建暂存目录，可运行 `python3 tools/audit-source-desktop.py --root /path/to/APP --data /path/to/UDA` 检查关键文件、默认登录、壁纸和隔离播放运行时的完整性。这个只读检查不能代替隐私审查、可启动性和实机验收，即使通过也不会将镜像标记为可刷写。
 
 已从源码独立组装出 APP 与 UDA 树的开发者，可用以下命令创建一份单独的候选暂存副本。脚本使用 `rsync` 保留所有权及扩展属性，清除机器身份和网络连接记录，并检查桌面资源；不会修改输入目录、连接平板或生成可刷写镜像：
@@ -94,6 +96,7 @@ python tools/test-stage-source-distribution.py
 python tools/test-build-source-distribution.py
 python tools/test-audit-source-components.py
 python tools/test-assemble-source-candidate.py
+python tools/test-install-source-desktop-deps.py
 python tools/test-fetch-sources.py
 python tools/test-preflight-source-build.py
 python tools/test-build-source-kernel.py

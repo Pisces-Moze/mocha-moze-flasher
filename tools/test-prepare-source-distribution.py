@@ -20,6 +20,7 @@ class SourcePreparationTests(unittest.TestCase):
             (self.root/p).mkdir(parents=True,exist_ok=True)
         (self.data/'wallpapers').mkdir(parents=True)
         (self.root/module.MARKER).write_text(json.dumps(module.MARKER_CONTENT))
+        (self.root/'.mocha-source-rootfs-build').touch()
         (self.root/'etc/mocha-internal-debian').touch()
         (self.root/'etc/passwd').write_text('root:x:0:0::/root:/bin/bash\nmocha:x:1000:1000::/home/mocha:/bin/bash\n')
         (self.root/'etc/shadow').write_text('root:secret:1:2\nmocha:secret:1:2\n')
@@ -39,6 +40,7 @@ class SourcePreparationTests(unittest.TestCase):
         self.assertEqual((self.root/'home/mocha/.config/keep').read_text(),'desktop')
         self.assertTrue((self.data/'wallpapers/example.webp').exists())
         self.assertFalse((self.root/module.MARKER).exists())
+        self.assertFalse((self.root/'.mocha-source-rootfs-build').exists())
         self.assertIn('mocha:$6$testhash:',(self.root/'etc/shadow').read_text())
 
     def test_refuses_private_files_before_modification(self):
