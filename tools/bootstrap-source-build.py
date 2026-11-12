@@ -27,6 +27,7 @@ def main(argv=None):
                         help='new Linux-filesystem directory for sources and build outputs')
     parser.add_argument('--jobs', type=int, default=4)
     parser.add_argument('--git-mirror', help='HTTPS GitHub mirror prefix')
+    parser.add_argument('--git-mirror-fallback', help='Optional second HTTPS GitHub mirror prefix')
     parser.add_argument('--device-root', type=Path,
                         help='optional inspected offline device root or private copy for Wi-Fi board data')
     args = parser.parse_args(argv)
@@ -61,10 +62,10 @@ def main(argv=None):
     work.mkdir(mode=0o700)
     lock = Path(__file__).resolve().parents[1] / 'sources.lock.json'
     sources, firmware, kernel = work/'sources', work/'firmware', work/'kernel'
-    fetch.fetch(lock, sources, args.git_mirror)
+    fetch.fetch(lock, sources, args.git_mirror, args.git_mirror_fallback)
     desktop.fetch(sources, work/'desktop-upstream',
                   Path(__file__).resolve().parents[1]/'desktop-upstream.lock.json',
-                  git_mirror=args.git_mirror)
+                  git_mirror=args.git_mirror, git_mirror_fallback=args.git_mirror_fallback)
     stage.stage(sources/'mocha-moze-firmware-private', firmware, fetch_wifi=True, fetch_gpu=True)
     if args.device_root is not None:
         board.extract(args.device_root, firmware)

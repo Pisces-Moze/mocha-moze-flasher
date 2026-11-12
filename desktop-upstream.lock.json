@@ -2,5 +2,8 @@
   "schema": 1,
   "niri": {"repository": "https://github.com/niri-wm/niri.git", "commit": "8ed0da44d974c32c6877d2f4630c314da0717ecb", "tag": "v26.04"},
   "noctalia": {"repository": "https://github.com/noctalia-dev/noctalia.git", "commit": "6ef43e2bf2f3d5b4205ec72a72e34a2ab76ce3b4", "tag": "v5.2.1"},
+  "nyxuri": {"repository": "https://github.com/ech678/Nyxuri.git", "commit": "ebafe03c9bdf1291eeb83d0f8c368d40a63ccdfd"},
+  "official-plugins": {"repository": "https://github.com/noctalia-dev/official-plugins.git", "commit": "9aec34181e46789b281263942092ac552f661d1a"},
+  "mpvpaper": {"repository": "https://github.com/GhostNaN/mpvpaper.git", "commit": "131a52c266d25262c62b85f52a4a978cafae6ee2"},
   "niri_vendor": {"url": "https://github.com/niri-wm/niri/releases/download/v26.04/niri-26.04-vendored-dependencies.tar.xz", "bytes": 40263284, "sha256": "407c525cd78710e72455c48741756857ca47dc32910a42f82cd40992a34beed6"}
 }

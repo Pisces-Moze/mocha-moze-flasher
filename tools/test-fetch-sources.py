@@ -60,6 +60,21 @@ class SourceTests(unittest.TestCase):
                 fetch.fetch(self.lock, Path(d) / 'sources')
             self.assertEqual(run.call_count, 4)
 
+    def test_failed_primary_mirror_falls_back_for_each_source(self):
+        rows = fetch.load_lock(self.lock)
+        def run(command, **kwargs):
+            if 'fetch' in command and any(str(value).startswith('https://primary.invalid/') for value in command):
+                raise fetch.subprocess.CalledProcessError(128, command)
+            return mock.DEFAULT
+        with tempfile.TemporaryDirectory() as d, \
+                mock.patch.object(fetch.subprocess, 'run', side_effect=run) as calls, \
+                mock.patch.object(fetch.subprocess, 'check_output',
+                                  side_effect=[row['commit'] + '\n' for row in rows]):
+            fetch.fetch(self.lock, Path(d) / 'sources', 'https://primary.invalid', 'https://fallback.invalid')
+            fallback = [call for call in calls.call_args_list
+                        if any(str(value).startswith('https://fallback.invalid/') for value in call.args[0])]
+            self.assertEqual(len(fallback), len(rows))
+
     def test_windows_checkout_is_rejected(self):
         self.environment.stop()
         with mock.patch.object(fetch.sys, 'platform', 'win32'):
