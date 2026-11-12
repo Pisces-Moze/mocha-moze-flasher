@@ -26,6 +26,7 @@ class AuditTests(unittest.TestCase):
             file.write_text('present')
         (self.root / audit.REQUIRED_ROOT['default login metadata']).write_text('{"schema":1,"username":"mocha"}')
         (self.root / 'etc/passwd').write_text('mocha:x:1000:1000::/home/mocha:/bin/bash\n')
+        (self.root / 'etc/fstab').write_text('LABEL=mocha-debian / ext4 defaults 0 1\nLABEL=mocha-data /srv/mocha-data ext4 defaults 0 2\n')
         getty = self.root / 'etc/systemd/system/getty@tty1.service.d'
         getty.mkdir(parents=True)
         (getty / 'mocha.conf').write_text('ExecStart=/sbin/agetty --autologin mocha\n')

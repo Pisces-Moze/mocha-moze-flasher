@@ -56,6 +56,15 @@ def inspect(root, data):
     enabled = root / 'etc/systemd/system/getty.target.wants/getty@tty1.service'
     if not enabled.is_symlink():
         issues.append('tty1 getty is not enabled')
+    fstab = root / 'etc/fstab'
+    mounts = {}
+    if fstab.is_file():
+        for line in fstab.read_text().splitlines():
+            fields = line.split()
+            if len(fields) >= 2 and not line.lstrip().startswith('#'):
+                mounts[fields[1]] = fields[0]
+    if mounts.get('/') != 'LABEL=mocha-debian' or mounts.get('/srv/mocha-data') != 'LABEL=mocha-data':
+        issues.append('root or data filesystem does not mount by the expected label')
     wallpapers = [p for p in data.rglob(WALLPAPER) if p.is_file() and not p.is_symlink()]
     if not wallpapers:
         issues.append('missing GOP30 wallpaper')

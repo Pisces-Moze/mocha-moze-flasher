@@ -58,6 +58,14 @@ python3 tools/build-source-boot.py --workspace ~/mocha-sources --output /path/to
 
 对已准备好的源码构建暂存目录，可运行 `python3 tools/audit-source-desktop.py --root /path/to/APP --data /path/to/UDA` 检查关键文件、默认登录、壁纸和隔离播放运行时的完整性。这个只读检查不能代替隐私审查、可启动性和实机验收，即使通过也不会将镜像标记为可刷写。
 
+已从源码独立组装出 APP 与 UDA 树的开发者，可用以下命令创建一份单独的候选暂存副本。脚本使用 `rsync` 保留所有权及扩展属性，清除机器身份和网络连接记录，并检查桌面资源；不会修改输入目录、连接平板或生成可刷写镜像：
+
+```sh
+sudo python3 tools/stage-source-distribution.py --root /path/to/source-APP --data /path/to/source-UDA --output /path/to/new-stage
+```
+
+该阶段目前只接受 UDA 顶层为 `wallpapers` 的源码构建布局，发现设备专属 Wi-Fi 板级数据、模型或已知个人资料时会停止。输出仍需独立隐私审查、镜像打包及实机验收。
+
 ## 开发与验证
 
 `tools/flash-distribution.py` 默认仅检查并展示计划；维护者可以用 `--probe --allow-candidate` 启动只读维护环境并备份 GPT/LNX。构建和镜像内容边界见 [发行说明](docs/DISTRIBUTION.md)。平板固件、私有密钥、用户数据及模型不在此仓库中。
@@ -65,6 +73,8 @@ python3 tools/build-source-boot.py --workspace ~/mocha-sources --output /path/to
 ```powershell
 python tools/test-bootstrap-source-build.py
 python tools/test-audit-source-desktop.py
+python tools/test-prepare-source-distribution.py
+python tools/test-stage-source-distribution.py
 python tools/test-fetch-sources.py
 python tools/test-preflight-source-build.py
 python tools/test-build-source-kernel.py
