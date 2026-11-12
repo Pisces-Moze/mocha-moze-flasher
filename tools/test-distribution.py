@@ -152,6 +152,11 @@ class ArchiveTests(unittest.TestCase):
             (root/'bundle.json').write_text(json.dumps({'schema':1,'device':'xiaomi-mocha-16gb','app_bytes':3*1024**3,'release_state':'candidate'}))
             with self.assertRaisesRegex(ValueError,'acceptance gate'):flash.verify_bundle(root)
 
+    def test_windows_install_entry_does_not_bypass_candidate_gate(self):
+        launcher=Path(__file__).with_name('Install-Mocha.cmd').read_text()
+        self.assertIn('--install --erase APP_UDA',launcher)
+        self.assertNotIn('--allow-candidate',launcher)
+
 
 @unittest.skipUnless(hasattr(os,'geteuid') and os.geteuid()==0,'Linux root staging-copy test')
 class CopyTests(unittest.TestCase):

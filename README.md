@@ -16,7 +16,7 @@ Windows 需要 OpenSSH（`ssh`、`ssh-keygen`）、Fastboot 与 RNDIS 驱动，�
 
 1. 备份全部个人数据并给平板充电。
 2. 关机后按电源＋音量减进入原厂 Fastboot，用数据线连接电脑。
-3. 将校验过的兼容镜像放在包的 `image/` 目录，双击 `Install-Mocha.cmd`。**程序立即开始执行擦除安装**，无需额外确认。
+3. 将已完成实机验收的兼容镜像放在包的 `image/` 目录，双击 `Install-Mocha.cmd`。**程序通过检查后立即开始执行擦除安装**，无需额外确认；未经验证的候选包会被双击入口拒绝。
 4. 按窗口提示保持连接。失败时不要重复刷写；保留 USB 和 RAM 会话，查看本机 `mocha-backups` 下的恢复说明。
 
 使用新版 RAM 安装环境构建的安装包会在格式化前只读提取当前设备的 Wi-Fi 板级数据，在本机备份并校验，再于写入系统后恢复。若旧 APP 分区不可读取、没有受支持的板级数据或存在冲突，安装会在格式化前停止。旧安装包沿用原有处理方式。备份目录中的板级数据属于该设备，请自行保管。
@@ -31,7 +31,7 @@ Windows 需要 OpenSSH（`ssh`、`ssh-keygen`）、Fastboot 与 RNDIS 驱动，�
 python3 tools/bootstrap-source-build.py --work ~/mocha-build --jobs 4 --git-mirror https://ghproxy.net/https://github.com --git-mirror-fallback https://ghproxy.vip/https://github.com
 ```
 
-该命令不会访问平板。完整桌面与镜像组装尚未实现，命令完成内核、驱动与 U-Boot 阶段后仍会以非零状态结束，**不会自动刷机**；请勿把内核产物当成完整系统。`--work` 必须是尚不存在的 Linux 文件系统目录，需要 Python 3.12 或更新版本、构建工具链及至少 20 GiB 空间。可追加 `--device-root /path/to/offline-root`，从本人已检查的离线系统副本提取板级数据；目前无法直接从 Fastboot 自动获取。
+该命令不会访问平板。完整桌面与镜像组装尚未实现，命令完成内核、驱动与 U-Boot 阶段后仍会以非零状态结束，**不会自动刷机**；请勿把内核产物当成完整系统。`--work` 必须是尚不存在的 Linux 文件系统目录，需要 Python 3.12 或更新版本、构建工具链及至少 20 GiB 空间。可追加 `--device-root /path/to/offline-root`，从本人已检查的离线系统副本提取板级数据。支持 `target-capture-v1` 的候选安装包会在 Fastboot 临时启动的 RAM 环境中从目标设备自动提取板级数据；该新路径尚需实机验收。
 
 ## 获取系统源码
 
@@ -54,7 +54,9 @@ python3 tools/build-source-drivers.py --workspace ~/mocha-sources --kernel /path
 python3 tools/build-source-boot.py --workspace ~/mocha-sources --output /path/to/build/boot --jobs 2
 ```
 
-第三至五条命令分别构建固定版本的内核、外部驱动与 U-Boot，不操作平板。 对已有设备的离线系统副本，可使用 `python3 tools/extract-board-data.py --root /path/to/offline-root --firmware-dir /path/to/staged-firmware` 提取该设备自己的 Wi-Fi 板级数据；它拒绝缺失或冲突的候选文件，也不打印设备标识。当前尚未将此步骤接入 Fastboot 自动采集。**拉取源码还不会生成镜像或执行刷机**：目前镜像构建器依赖已验证的离线系统副本，完整桌面、固件和驱动的源码构建与组装尚未贯通；固定提交也不代表它们共同构成已验收的发行版本。
+第三至五条命令分别构建固定版本的内核、外部驱动与 U-Boot，不操作平板。对已有设备的离线系统副本，可使用 `python3 tools/extract-board-data.py --root /path/to/offline-root --firmware-dir /path/to/staged-firmware` 提取该设备自己的 Wi-Fi 板级数据；它拒绝缺失或冲突的候选文件，也不打印设备标识。**拉取源码还不会生成镜像或执行刷机**：目前镜像构建器依赖已验证的离线系统副本，完整桌面、固件和驱动的源码构建与组装尚未贯通；固定提交也不代表它们共同构成已验收的发行版本。
+
+对已准备好的源码构建暂存目录，可运行 `python3 tools/audit-source-desktop.py --root /path/to/APP --data /path/to/UDA` 检查关键文件、默认登录、壁纸和隔离播放运行时的完整性。这个只读检查不能代替隐私审查、可启动性和实机验收，即使通过也不会将镜像标记为可刷写。
 
 ## 开发与验证
 
@@ -62,6 +64,7 @@ python3 tools/build-source-boot.py --workspace ~/mocha-sources --output /path/to
 
 ```powershell
 python tools/test-bootstrap-source-build.py
+python tools/test-audit-source-desktop.py
 python tools/test-fetch-sources.py
 python tools/test-preflight-source-build.py
 python tools/test-build-source-kernel.py

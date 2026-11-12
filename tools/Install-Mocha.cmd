@@ -18,7 +18,7 @@ if errorlevel 1 goto missing
 echo Mocha installer - clears APP, UDA and cache. Back up personal files first.
 echo The GPT/LNX backup cannot restore personal files. Press Ctrl+C now to cancel.
 echo Only the validated 16 GB Mocha is supported. Enter factory Fastboot first.
-"%PYTHON%" flash-distribution.py "..\image" --install --erase APP_UDA --allow-candidate
+"%PYTHON%" flash-distribution.py "..\image" --install --erase APP_UDA
 if errorlevel 1 (
   echo Installation stopped. Keep USB connected and read the error above.
   pause
