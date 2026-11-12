@@ -21,7 +21,7 @@ def load(name, filename):
     return module
 
 
-def validate(stage, output, inputs):
+def validate(stage, output, inputs, require_components=False):
     stage,output=Path(stage),Path(output)
     if stage.is_symlink() or not stage.is_dir(): raise ValueError('stage must be a real directory')
     stage,output=stage.resolve(),output.resolve()
@@ -32,6 +32,8 @@ def validate(stage, output, inputs):
     report=json.loads(marker.read_text())
     if report.get('schema')!=1 or report.get('stage')!='source-desktop-copy' or report.get('ready_to_flash') is not False:
         raise ValueError('unexpected source stage report')
+    if require_components and report.get('kernel_driver_match') is not True:
+        raise ValueError('kernel and external driver matching was not checked')
     for name,path in inputs.items():
         if path.is_symlink() or not path.is_file() or not path.stat().st_size:
             raise ValueError('missing or symlinked boot input: '+name)
@@ -60,10 +62,12 @@ def main(argv=None):
     for name in ('loader','ram-kernel','ram-dtb','installer','lnx'):
         p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--version',default='source-candidate')
+    p.add_argument('--require-component-match',action='store_true',
+                   help='require staged kernel and driver build outputs to have been compared')
     a=p.parse_args(argv)
     if not hasattr(os,'geteuid') or os.geteuid()!=0:p.error('Linux root required')
     inputs={name:getattr(a,name) for name in ('loader','ram_kernel','ram_dtb','installer','lnx')}
-    try: stage,output,builder=validate(a.stage,a.output,inputs)
+    try: stage,output,builder=validate(a.stage,a.output,inputs,a.require_component_match)
     except (OSError,ValueError,RuntimeError,json.JSONDecodeError) as exc:p.error(str(exc))
     repo=Path(__file__).resolve().parents[1]
     output.mkdir(mode=0o700);work=output/'private-work';work.mkdir(mode=0o700)

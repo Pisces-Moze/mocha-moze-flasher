@@ -34,5 +34,20 @@ class StageTests(unittest.TestCase):
         self.assertFalse(result['ready_to_flash'])
         self.assertTrue((self.out/'source-stage.json').is_file())
 
+    def test_kernel_and_drivers_must_be_paired(self):
+        with mock.patch.object(module.subprocess,'run') as run:
+            with self.assertRaisesRegex(ValueError,'supplied together'):
+                module.stage(self.root,self.data,self.out,kernel=self.root)
+            run.assert_not_called()
+
+    def test_optional_component_check_runs_before_report(self):
+        kernel=self.parent/'kernel';drivers=self.parent/'drivers';kernel.mkdir();drivers.mkdir()
+        with mock.patch.object(module.shutil,'which',return_value='/usr/bin/rsync'), \
+             mock.patch.object(module.shutil,'disk_usage',return_value=mock.Mock(free=8*1024**3)), \
+             mock.patch.object(module.subprocess,'run') as run:
+            result=module.stage(self.root,self.data,self.out,kernel=kernel,drivers=drivers)
+        self.assertTrue(result['kernel_driver_match'])
+        self.assertTrue(run.call_args_list[-1].args[0][1].endswith('audit-source-components.py'))
+
 
 if __name__=='__main__': unittest.main()

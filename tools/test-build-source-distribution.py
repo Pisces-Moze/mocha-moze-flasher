@@ -37,6 +37,11 @@ class SourcePackageTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'unexpected source stage report'):self.call_validate()
         self.assertFalse(self.out.exists())
 
+    def test_required_component_check_must_have_been_run(self):
+        with self.assertRaisesRegex(ValueError,'matching was not checked'):
+            module.validate(self.stage,self.out,self.inputs,require_components=True)
+        self.assertFalse(self.out.exists())
+
     def test_rejects_wrong_kernel_before_output(self):
         self.inputs['ram_kernel'].write_bytes(b'bad image')
         with self.assertRaisesRegex(ValueError,'invalid ram_kernel'):self.call_validate()

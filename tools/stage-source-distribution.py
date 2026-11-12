@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 
-def stage(root, data, output):
+def stage(root, data, output, kernel=None, drivers=None):
     root, data, output = Path(root), Path(data), Path(output)
     if root.is_symlink() or data.is_symlink() or not root.is_dir() or not data.is_dir():
         raise ValueError('source APP and UDA must be real directories')
@@ -28,6 +28,10 @@ def stage(root, data, output):
         raise ValueError('APP and UDA source trees must be separate')
     if not (root/'etc/mocha-internal-debian').is_file():
         raise ValueError('source is not a Mocha root filesystem')
+    if (kernel is None) != (drivers is None):
+        raise ValueError('kernel and drivers must be supplied together')
+    if kernel is not None and any(Path(p).is_symlink() or not Path(p).is_dir() for p in (kernel,drivers)):
+        raise ValueError('kernel and drivers must be real directories')
     if not shutil.which('rsync'):
         raise ValueError('rsync is required')
     if shutil.disk_usage(output.parent).free < 4*1024**3:
@@ -44,7 +48,12 @@ def stage(root, data, output):
                     '--root',str(app),'--data',str(uda)],check=True)
     subprocess.run([sys.executable,str(here/'audit-source-desktop.py'),
                     '--root',str(app),'--data',str(uda)],check=True)
+    if kernel is not None:
+        subprocess.run([sys.executable,str(here/'audit-source-components.py'),
+                        '--root',str(app),'--kernel',str(Path(kernel).resolve()),
+                        '--drivers',str(Path(drivers).resolve())],check=True)
     report={'schema':1,'stage':'source-desktop-copy','ready_to_flash':False,
+            'kernel_driver_match':kernel is not None,
             'remaining':['privacy review','image packaging','physical-device acceptance']}
     (output/'source-stage.json').write_text(json.dumps(report,indent=2)+'\n')
     return report
@@ -55,11 +64,13 @@ def main(argv=None):
     parser.add_argument('--root',type=Path,required=True)
     parser.add_argument('--data',type=Path,required=True)
     parser.add_argument('--output',type=Path,required=True)
+    parser.add_argument('--kernel',type=Path,help='matching source kernel output')
+    parser.add_argument('--drivers',type=Path,help='matching source external-driver output')
     args=parser.parse_args(argv)
     if not hasattr(os,'geteuid') or os.geteuid()!=0:
         parser.error('Linux root is required for ownership and xattrs')
     try:
-        print(json.dumps(stage(args.root,args.data,args.output),indent=2))
+        print(json.dumps(stage(args.root,args.data,args.output,args.kernel,args.drivers),indent=2))
     except (OSError,ValueError,subprocess.SubprocessError) as exc:
         parser.error(str(exc))
     return 0

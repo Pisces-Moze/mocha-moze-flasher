@@ -66,6 +66,8 @@ sudo python3 tools/stage-source-distribution.py --root /path/to/source-APP --dat
 
 该阶段目前只接受 UDA 顶层为 `wallpapers` 的源码构建布局，发现设备专属 Wi-Fi 板级数据、模型或已知个人资料时会停止。输出仍需独立隐私审查、镜像打包及实机验收。
 
+可同时提供 `--kernel /path/to/kernel --drivers /path/to/drivers`，核对 APP 中的内核、设备树和七个外部模块与这两份构建产物逐项一致。这只证明文件匹配，不能代替实机测试。
+
 开发者可对上述暂存结果进一步生成**候选**安装包，需显式提供匹配的 RAM 引导器、维护内核、设备树、支持板级数据采集的维护环境以及新构建的 LNX 引导镜像：
 
 ```sh
@@ -75,6 +77,8 @@ sudo python3 tools/build-source-distribution.py --stage /path/to/new-stage --out
 ```
 
 该命令仍不会拉取或构建桌面组件，也不会访问平板。生成的候选包及 `private-work` 只供开发和审查；文件头和哈希检查不能证明引导组件相互匹配或设备能够启动，不应直接分发。正式发布前必须完成隐私审查和实机验收。
+
+如果以上源码桌面树及内核、驱动和维护引导产物均已准备好，也可以使用 `tools/assemble-source-candidate.py` 一次串联暂存、组件匹配和候选打包；通过 `--help` 查看所需路径。此入口目前仍不负责构建桌面，产物保持候选状态。
 
 ## 开发与验证
 
@@ -88,6 +92,8 @@ python tools/test-audit-source-desktop.py
 python tools/test-prepare-source-distribution.py
 python tools/test-stage-source-distribution.py
 python tools/test-build-source-distribution.py
+python tools/test-audit-source-components.py
+python tools/test-assemble-source-candidate.py
 python tools/test-fetch-sources.py
 python tools/test-preflight-source-build.py
 python tools/test-build-source-kernel.py
