@@ -24,7 +24,7 @@ gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav
 python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1 gir1.2-gstreamer-1.0 fcitx5 fcitx5-pinyin fcitx5-frontend-gtk3
 fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji fonts-dejavu-core
 xdg-desktop-portal xdg-desktop-portal-gtk xdg-utils upower brightnessctl
-xwayland foot curl ca-certificates socat slurp wf-recorder inotify-tools grim
+xwayland foot curl ca-certificates socat slurp wf-recorder inotify-tools grim wtype wl-clipboard playerctl
 '''.split()
 
 

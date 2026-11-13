@@ -17,6 +17,19 @@ def install(root,data,components,adapter,upstream,proot,qemu,video):
     root,data,components,adapter,upstream,proot,qemu,video=map(Path,(root,data,components,adapter,upstream,proot,qemu,video))
     if root.resolve()==Path('/') or not (root/'.mocha-source-rootfs-build').is_file():
         raise ValueError('marked offline source rootfs required')
+    groups={line.split(':',1)[0] for line in (root/'etc/group').read_text().splitlines()}
+    selected=[name for name in ('sudo','audio','video','input','render') if name in groups]
+    if selected:
+        subprocess.run([str(proot),'-r',str(root),'-q',str(qemu),'-b','/dev','-w','/',
+                        '/usr/sbin/usermod','-aG',','.join(selected),'mocha'],
+                       env=dict(os.environ,PROOT_NO_SECCOMP='1'),check=True)
+    extras={'wtype':'wtype','wl-copy':'wl-clipboard','playerctl':'playerctl'}
+    missing=sorted({package for command,package in extras.items() if not (root/'usr/bin'/command).exists()})
+    if missing:
+        subprocess.run([str(proot),'-r',str(root),'-q',str(qemu),'-b','/dev','-b','/etc/resolv.conf',
+                        '-w','/','/usr/bin/apt-get','-o','APT::Sandbox::User=root','-y',
+                        '--no-install-recommends','install',*missing],
+                       env=dict(os.environ,PROOT_NO_SECCOMP='1',DEBIAN_FRONTEND='noninteractive'),check=True)
     for component in ('niri','noctalia','mesa/stage'):
         if not (components/component).is_dir():raise ValueError('missing built component: '+component)
     actual=subprocess.check_output(['git','-C',str(upstream/'nyxuri'),'rev-parse','HEAD'],text=True).strip()
