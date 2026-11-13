@@ -25,6 +25,8 @@ Windows 需要 OpenSSH（`ssh`、`ssh-keygen`）、Fastboot 与 RNDIS 驱动，�
 
 ## 自动源码准备（开发阶段）
 
+Windows 用户安装并启动 Docker Desktop、安装 Python 3 后，可以双击仓库根目录的 `Build-Source-Mocha.cmd`。入口会构建 Docker 环境，通过国内镜像拉取固定版本源码，并把候选包复制到 `source-candidates/`。Docker 构建目录保留在命名卷中以便排查。需要有足够的 Docker 磁盘空间；平板无需连接。本入口目前只构建候选包，不会自动刷机。
+
 在 Linux 构建机上可使用下面的实验入口拉取固定版本源码和固件，构建内核、驱动、U-Boot、桌面及播放器，并尝试组装候选包：
 
 ```sh
