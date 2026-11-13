@@ -29,6 +29,10 @@ class SpeakerStageTests(unittest.TestCase):
                                  'mocha-speaker-hardware.py':"KERNEL = '6.12.111-moze.1-native-vde2'\nROOT = ROOT / '20261022'\n",
                                  '51-mocha-speakers.conf':'wireplumber', 'mocha-speakers.conf':'alsa'}.items():
                 (source/'audio'/name).write_text(content)
+            (source/'runtime').mkdir();(source/'gpu').mkdir()
+            (source/'runtime/mocha-runtime-policy.py').write_text('runtime')
+            (source/'runtime/mocha-runtime-policy.service').write_text('unit')
+            (source/'gpu/mocha-native-gpu-policy.sh').write_text('gpu')
             speaker.install(root,drivers,kernel,source)
             manifest=json.loads((root/'usr/local/lib/mocha-audio/6.1-test/source/manifest.json').read_text())
             self.assertEqual(len(manifest['modules']),6);self.assertEqual(len(manifest['firmware']),9)

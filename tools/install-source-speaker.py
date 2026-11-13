@@ -57,6 +57,25 @@ def install(root,drivers,kernel,source):
     wants=root/'etc/systemd/system/multi-user.target.wants';wants.mkdir(parents=True,exist_ok=True)
     link=wants/'mocha-speaker-hardware.service'
     if not link.is_symlink():link.symlink_to('../mocha-speaker-hardware.service')
+    # Include the previously exercised stock-frequency policy with the
+    # 1020 MHz CPU / 648 MHz GPU limits used for the prototype tests.
+    for src,dst in [('runtime/mocha-runtime-policy.py','usr/local/libexec/mocha-runtime-policy.py'),
+                    ('runtime/mocha-runtime-policy.service','etc/systemd/system/mocha-runtime-policy.service'),
+                    ('gpu/mocha-native-gpu-policy.sh','usr/local/libexec/mocha-native-gpu-policy.sh')]:
+        shutil.copy2(source/src,root/dst)
+    (root/'usr/local/libexec/mocha-runtime-policy.py').chmod(0o755)
+    (root/'usr/local/libexec/mocha-native-gpu-policy.sh').chmod(0o755)
+    gpu_service=root/'etc/systemd/system/mocha-native-gpu-policy.service'
+    gpu_service.write_text('[Unit]\nDescription=Mocha stock GPU policy\nAfter=mocha-desktop-hardware.service\n'
+                           '[Service]\nType=simple\nExecStart=/usr/local/libexec/mocha-native-gpu-policy.sh\n'
+                           'Restart=on-failure\nRestartSec=10\n[Install]\nWantedBy=multi-user.target\n')
+    for name in ('mocha-runtime-policy.service','mocha-native-gpu-policy.service'):
+        link=wants/name
+        if not link.is_symlink():link.symlink_to('../'+name)
+    settings=root/'home/mocha/.config/mocha';settings.mkdir(parents=True,exist_ok=True)
+    (settings/'runtime.json').write_text(json.dumps({'cpu_max_mhz':1020,'swappiness':80})+'\n')
+    (settings/'gpu-max-pstate').write_text('0a\n')
+    for path in (settings,settings/'runtime.json',settings/'gpu-max-pstate'):os.chown(path,1000,1000)
     print('SOURCE_SPEAKER_STAGED; real stereo playback requires device validation')
 
 

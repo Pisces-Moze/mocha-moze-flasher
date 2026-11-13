@@ -38,7 +38,7 @@ def install(root,data,components,adapter,upstream,proot,qemu,video):
         shutil.copytree(components/name,root,dirs_exist_ok=True,symlinks=True)
     libexec=root/'usr/local/libexec';libexec.mkdir(parents=True,exist_ok=True)
     bin_dir=root/'usr/local/bin';bin_dir.mkdir(parents=True,exist_ok=True)
-    for name in ('mocha-native-app','mocha-session-exec','mocha-buttons.py','mocha-touch-key-lights.py','mocha-touch-keyboard.py'):
+    for name in ('mocha-native-app','mocha-session-exec','mocha-buttons.py','mocha-touch-key-lights.py','mocha-touch-keyboard.py','mocha-app-freezer.py'):
         shutil.copy2(adapter/'tablet'/name,libexec/name);(libexec/name).chmod(0o755)
     for name in ('mocha-input-method','mocha-keyboard','mocha-touch-nav'):
         shutil.copy2(adapter/'tablet'/name,bin_dir/name);(bin_dir/name).chmod(0o755)
@@ -139,7 +139,7 @@ WantedBy=multi-user.target
     shutil.copy2(adapter/'tablet/fcitx5-config',fcitx/'config')
     units=home/'.config/systemd/user';units.mkdir(parents=True,exist_ok=True)
     wants=units/'graphical-session.target.wants';wants.mkdir(exist_ok=True)
-    for name in ('mocha-buttons.service','mocha-input-method.service','mocha-keyboard.service'):
+    for name in ('mocha-buttons.service','mocha-input-method.service','mocha-keyboard.service','mocha-app-freezer.service'):
         shutil.copy2(adapter/'tablet'/name,units/name)
         link=wants/name
         if not link.is_symlink():link.symlink_to('../'+name)
