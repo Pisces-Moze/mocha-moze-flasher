@@ -15,6 +15,7 @@ def main(argv=None):
     p.add_argument('--workspace', type=Path, required=True)
     p.add_argument('--output', type=Path, required=True)
     p.add_argument('--jobs', type=int, default=2)
+    p.add_argument('--git-mirror', help='optional HTTPS GitHub mirror prefix for U-Boot')
     p.add_argument('--lock', type=Path, default=Path(__file__).resolve().parents[1]/'sources.lock.json')
     a = p.parse_args(argv)
     if sys.platform != 'linux': p.error('Linux is required for the U-Boot build')
@@ -37,6 +38,11 @@ def main(argv=None):
     env=os.environ.copy();env['JOBS']=str(a.jobs);env['GIT_TERMINAL_PROMPT']='0'
     for mode in ('ram','emmc'):
         target=out/mode
+        if mode == 'ram' and a.git_mirror:
+            if not a.git_mirror.startswith('https://'):p.error('Git mirror must use HTTPS')
+            target.mkdir()
+            url=a.git_mirror.rstrip('/')+'/u-boot/u-boot.git'
+            subprocess.run(['git','clone','--depth','1','--branch','v2026.07',url,str(target/'source')],check=True,env=env)
         if mode == 'emmc':
             # Both modes use the same checked-out upstream tag. Clone the
             # local Git objects rather than downloading U-Boot a second time.

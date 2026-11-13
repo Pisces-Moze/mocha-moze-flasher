@@ -42,9 +42,12 @@ class BootstrapTests(unittest.TestCase):
             with mock.patch.object(m, 'load', side_effect=[fetch,desktop,stage,board,preflight]):
                 result=m.main(['--work',str(Path(d)/'new')])
             self.assertEqual(result,2)
-            self.assertEqual(run.call_count,3)
+            self.assertEqual(run.call_count,12)
             self.assertEqual([Path(call.args[0][1]).name for call in run.call_args_list],
-                             ['build-source-kernel.py','build-source-drivers.py','build-source-boot.py'])
+                             ['build-source-kernel.py','build-source-drivers.py','build-source-boot.py','build-source-desktop.py',
+                              'build-source-rootfs.py','build-source-ram.py','install-source-desktop-deps.py','install-source-firmware.py',
+                              'install-source-drivers.py','build-source-video.py','install-source-desktop.py',
+                              'assemble-source-candidate.py'])
             self.assertTrue((Path(d)/'new/source-build-status.json').exists())
 
 if __name__ == '__main__': unittest.main()

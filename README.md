@@ -25,13 +25,23 @@ Windows 需要 OpenSSH（`ssh`、`ssh-keygen`）、Fastboot 与 RNDIS 驱动，�
 
 ## 自动源码准备（开发阶段）
 
-在 Linux 构建机上可使用下面的入口自动拉取固定版本的 Mocha、Niri、Noctalia、Nyxuri、官方插件和 mpvpaper 源码，下载并校验已匹配的固件，构建内核、外部驱动和 U-Boot 并输出预检报告：
+在 Linux 构建机上可使用下面的实验入口拉取固定版本源码和固件，构建内核、驱动、U-Boot、桌面及播放器，并尝试组装候选包：
 
 ```sh
 python3 tools/bootstrap-source-build.py --work ~/mocha-build --jobs 4 --git-mirror https://ghproxy.net/https://github.com --git-mirror-fallback https://ghproxy.vip/https://github.com
 ```
 
-该命令不会访问平板。完整桌面与镜像组装尚未实现，命令完成内核、驱动与 U-Boot 阶段后仍会以非零状态结束，**不会自动刷机**；请勿把内核产物当成完整系统。`--work` 必须是尚不存在的 Linux 文件系统目录，需要 Python 3.12 或更新版本、构建工具链及至少 20 GiB 空间。可追加 `--device-root /path/to/offline-root`，从本人已检查的离线系统副本提取板级数据。支持 `target-capture-v1` 的候选安装包会在 Fastboot 临时启动的 RAM 环境中从目标设备自动提取板级数据；已在一台原型机上完成只读采集与电脑备份校验，格式化后的恢复环节仍需实机验收。
+也可在 Debian 13 构建机使用仓库中的实验 Docker 环境，构建目录必须位于 Linux 文件系统且有足够空间：
+
+```sh
+docker build -t mocha-source-builder --build-arg DEBIAN_MIRROR=https://mirrors.tuna.tsinghua.edu.cn/debian .
+docker run --rm --memory=4g -v /path/on/linux:/build mocha-source-builder \
+  --work /build/mocha-build --jobs 4 --git-mirror https://ghproxy.net/https://github.com
+```
+
+Docker 基础镜像地址可通过 `--build-arg DEBIAN_IMAGE=镜像地址/debian:trixie` 替换。若构建机没有可用的 GitHub 镜像或 Debian 软件源，需替换为该机器可访问的镜像地址。
+
+该命令不会访问平板。构建与组装已串联，但**尚未完成从头到尾的实际运行验证**；即使生成候选包也会以非零状态结束，**不会自动刷机**。`--work` 必须是尚不存在的 Linux 文件系统目录，需要 Python 3.12 或更新版本、构建工具链及至少 20 GiB 空间。可使用 `--mesa-url` 指定 HTTPS 源码镜像，或通过 `--mesa-archive` 指定已下载的 Mesa 25.0.7 源码包；脚本会校验哈希。可追加 `--device-root /path/to/offline-root`，从本人已检查的离线系统副本提取板级数据。支持 `target-capture-v1` 的候选安装包会在 Fastboot 临时启动的 RAM 环境中从目标设备自动提取板级数据；已在一台原型机上完成只读采集与电脑备份校验，格式化后的恢复环节仍需实机验收。
 
 ## 获取系统源码
 
@@ -44,7 +54,7 @@ python3 tools/fetch-desktop-upstream.py --workspace ~/mocha-sources --output /pa
 
 拉取需要在 Linux 或 WSL 的 Linux 文件系统中运行，不能使用 Windows 盘符或 `/mnt/c`：内核源码包含 Windows 不允许检出的文件名。脚本拒绝覆盖非空目录，并在每次检出后验证提交号。
 
-拉取后可校验并暂存公开固件中的蓝牙和扬声器资产，并从 Debian 固定版本下载经哈希核对的 Wi-Fi 与 Nouveau GK20A 固件及其许可，再运行只读预检。每台设备的 Wi-Fi 板级数据仍须单独准备；不能直接将 MIUI 的 GPU 微码改名使用。当前完整桌面组装器尚未完成，预检会返回非零：
+拉取后可校验并暂存公开固件中的蓝牙和扬声器资产，并从 Debian 固定版本下载经哈希核对的 Wi-Fi 与 Nouveau GK20A 固件及其许可，再运行只读预检。每台设备的 Wi-Fi 板级数据仍须单独准备；不能直接将 MIUI 的 GPU 微码改名使用。由于整体构建和实机验收尚未完成，预检会返回非零：
 
 ```sh
 python3 tools/stage-public-firmware.py --source ~/mocha-sources/mocha-moze-firmware-private --output /path/to/staged-firmware --fetch-wifi --fetch-gpu
@@ -54,7 +64,7 @@ python3 tools/build-source-drivers.py --workspace ~/mocha-sources --kernel /path
 python3 tools/build-source-boot.py --workspace ~/mocha-sources --output /path/to/build/boot --jobs 2
 ```
 
-第三至五条命令分别构建固定版本的内核、外部驱动与 U-Boot，不操作平板。对已有设备的离线系统副本，可使用 `python3 tools/extract-board-data.py --root /path/to/offline-root --firmware-dir /path/to/staged-firmware` 提取该设备自己的 Wi-Fi 板级数据；它拒绝缺失或冲突的候选文件，也不打印设备标识。**拉取源码还不会生成镜像或执行刷机**：目前镜像构建器依赖已验证的离线系统副本，完整桌面、固件和驱动的源码构建与组装尚未贯通；固定提交也不代表它们共同构成已验收的发行版本。
+第三至五条命令分别构建固定版本的内核、外部驱动与 U-Boot，不操作平板。对已有设备的离线系统副本，可使用 `python3 tools/extract-board-data.py --root /path/to/offline-root --firmware-dir /path/to/staged-firmware` 提取该设备自己的 Wi-Fi 板级数据；它拒绝缺失或冲突的候选文件，也不打印设备标识。单独拉取源码不会生成镜像或执行刷机，固定提交也不代表它们共同构成已验收的发行版本。
 
 源码生成的基础 rootfs 完成后，可用 `sudo python3 tools/install-source-desktop-deps.py --root /path/to/rootfs --proot /path/to/proot --qemu /path/to/qemu-arm` 安装桌面运行依赖。它要求基础 rootfs 构建标记，使用 rootfs 中配置的 Debian 镜像，并在安装期间禁止服务自动启动；调用前后会检查 dpkg 状态。此命令不构建桌面程序，也不适用于正在使用的系统。
 
@@ -68,7 +78,7 @@ sudo python3 tools/stage-source-distribution.py --root /path/to/source-APP --dat
 
 该阶段目前只接受 UDA 顶层为 `wallpapers` 的源码构建布局，发现设备专属 Wi-Fi 板级数据、模型或已知个人资料时会停止。输出仍需独立隐私审查、镜像打包及实机验收。
 
-可同时提供 `--kernel /path/to/kernel --drivers /path/to/drivers`，核对 APP 中的内核、设备树和七个外部模块与这两份构建产物逐项一致。这只证明文件匹配，不能代替实机测试。
+可同时提供 `--kernel /path/to/kernel --drivers /path/to/drivers`，核对 APP 中的内核、设备树和七个外部模块与这两份构建产物逐项一致。再提供 `--speaker-source /path/to/mocha-moze-drivers` 可装配内置扬声器初始化服务及保护固件清单，要求源 rootfs 包含构建标记。这只证明文件匹配，不能代替实机测试。
 
 开发者可对上述暂存结果进一步生成**候选**安装包，需显式提供匹配的 RAM 引导器、维护内核、设备树、支持板级数据采集的维护环境以及新构建的 LNX 引导镜像：
 
@@ -80,7 +90,7 @@ sudo python3 tools/build-source-distribution.py --stage /path/to/new-stage --out
 
 该命令仍不会拉取或构建桌面组件，也不会访问平板。生成的候选包及 `private-work` 只供开发和审查；文件头和哈希检查不能证明引导组件相互匹配或设备能够启动，不应直接分发。正式发布前必须完成隐私审查和实机验收。
 
-如果以上源码桌面树及内核、驱动和维护引导产物均已准备好，也可以使用 `tools/assemble-source-candidate.py` 一次串联暂存、组件匹配和候选打包；通过 `--help` 查看所需路径。此入口目前仍不负责构建桌面，产物保持候选状态。
+如果以上源码桌面树及内核、驱动、驱动源码和维护引导产物均已准备好，也可以使用 `tools/assemble-source-candidate.py` 一次串联扬声器装配、暂存、组件匹配和候选打包；通过 `--help` 查看所需路径。此入口目前仍不负责构建桌面，产物保持候选状态。
 
 ## 开发与验证
 
@@ -90,6 +100,7 @@ sudo python3 tools/build-source-distribution.py --stage /path/to/new-stage --out
 
 ```powershell
 python tools/test-bootstrap-source-build.py
+python tools/test-build-source-desktop.py
 python tools/test-audit-source-desktop.py
 python tools/test-prepare-source-distribution.py
 python tools/test-stage-source-distribution.py
@@ -97,6 +108,7 @@ python tools/test-build-source-distribution.py
 python tools/test-audit-source-components.py
 python tools/test-assemble-source-candidate.py
 python tools/test-install-source-desktop-deps.py
+python tools/test-install-source-speaker.py
 python tools/test-fetch-sources.py
 python tools/test-preflight-source-build.py
 python tools/test-build-source-kernel.py

@@ -14,7 +14,7 @@ class AssemblyTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.addCleanup(self.tmp.cleanup);base=Path(self.tmp.name)
         self.args=SimpleNamespace(output=base/'output',version='test')
-        for name in ('root','data','kernel','drivers'):
+        for name in ('root','data','kernel','drivers','speaker_source'):
             path=base/name;path.mkdir();setattr(self.args,name,path)
         for name in ('loader','ram_kernel','ram_dtb','installer','lnx'):
             path=base/name;path.write_bytes(b'fixture');setattr(self.args,name,path)
@@ -27,6 +27,7 @@ class AssemblyTests(unittest.TestCase):
         self.assertIn('--kernel',first);self.assertIn('--drivers',first)
         self.assertTrue(second[1].endswith('build-source-distribution.py'))
         self.assertIn('--require-component-match',second)
+        self.assertIn('--speaker-source',first);self.assertIn('--require-speaker',second)
         self.assertFalse(result['ready_to_flash'])
 
     def test_missing_input_fails_before_output(self):

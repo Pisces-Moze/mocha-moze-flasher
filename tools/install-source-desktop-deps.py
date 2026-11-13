@@ -18,7 +18,7 @@ libfontconfig1 libfreetype6 libglib2.0-0t64 libsecret-1-0 libsodium23
 libpipewire-0.3-0 libwireplumber-0.5-0 libqalculate23 libpam0g libxml2
 libical3 libtomlplusplus3 libmd4c0 libwebp7 libwebpdemux2 libjxl0.11
 libsndfile1 libsdbus-c++2 libdisplay-info2 librsvg2-2 network-manager bluez
-pipewire wireplumber pipewire-pulse pipewire-alsa alsa-utils firefox-esr mpv
+pipewire wireplumber pipewire-pulse pipewire-alsa libspa-0.2-bluetooth alsa-utils firefox-esr mpv
 ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-gl
 gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav
 python3-gi gir1.2-gstreamer-1.0 fcitx5 fcitx5-pinyin fcitx5-frontend-gtk3
@@ -57,9 +57,13 @@ def install(root, proot, qemu):
                               capture_output=True,text=True)
         if result.stdout.strip():raise RuntimeError('rootfs dpkg audit reports unfinished packages')
     try:
-        check_dpkg()
         apt=prefix+['/usr/bin/apt-get','-o','APT::Sandbox::User=root']
         subprocess.run(apt+['update'],env=env,check=True)
+        # A cross-architecture second stage can leave D-Bus or its dependencies
+        # unpacked but not configured. Repair that state before installing UI.
+        subprocess.run(apt+['-y','-f','install'],env=env,check=True)
+        subprocess.run(prefix+['/usr/bin/dpkg','--configure','-a'],env=env,check=True)
+        check_dpkg()
         subprocess.run(apt+['-y','--no-install-recommends','install',*PACKAGES],env=env,check=True)
         check_dpkg()
         subprocess.run(prefix+['/usr/bin/apt-get','check'],env=env,check=True)

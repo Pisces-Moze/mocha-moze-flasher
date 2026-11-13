@@ -26,8 +26,8 @@ class DependencyStageTests(unittest.TestCase):
              mock.patch.object(module.subprocess,'run',return_value=SimpleNamespace(stdout='')) as run:
             module.install(self.root,self.proot,self.qemu)
         commands=[call.args[0] for call in run.call_args_list]
-        self.assertEqual(len(commands),5)
-        self.assertIn('dbus-user-session',commands[2]);self.assertIn('dbus-daemon',commands[2])
+        self.assertEqual(len(commands),7)
+        self.assertIn('dbus-user-session',commands[4]);self.assertIn('dbus-daemon',commands[4])
         self.assertFalse((self.root/'usr/sbin/policy-rc.d').exists())
 
     def test_failure_removes_temporary_policy(self):
@@ -46,7 +46,7 @@ class DependencyStageTests(unittest.TestCase):
         with mock.patch.object(module.os,'access',return_value=True), \
              mock.patch.object(module.subprocess,'run',return_value=SimpleNamespace(stdout='unconfigured package')) as run:
             with self.assertRaisesRegex(RuntimeError,'unfinished packages'):module.install(self.root,self.proot,self.qemu)
-        self.assertEqual(run.call_count,1);self.assertFalse((self.root/'usr/sbin/policy-rc.d').exists())
+        self.assertEqual(run.call_count,4);self.assertFalse((self.root/'usr/sbin/policy-rc.d').exists())
 
 
 if __name__=='__main__':unittest.main()

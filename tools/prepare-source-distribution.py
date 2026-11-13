@@ -19,7 +19,7 @@ PRIVATE_NAMES = {'authorized_keys', 'known_hosts', 'cookies.sqlite', 'places.sql
                  'key4.db', 'logins.json', 'sessionstore.jsonlz4',
                  'recovery.jsonlz4', 'recovery.baklz4'}
 PURGE = ('.mocha-source-rootfs-build', 'root/.ssh', 'home/mocha/.ssh', 'root/.bash_history', 'home/mocha/.bash_history', 'home/mocha/.cache',
-         'home/mocha/.local/state', 'root/.config', 'var/log', 'var/crash',
+         'home/mocha/.local/state', 'root/.config', 'tmp', 'var/tmp', 'var/log', 'var/crash',
          'var/backups', 'var/cache/apt/archives', 'var/lib/NetworkManager', 'var/lib/bluetooth',
          'var/lib/upower', 'var/lib/dhcp', 'etc/NetworkManager/system-connections',
          'var/lib/systemd/coredump', 'var/lib/dbus/machine-id',
@@ -109,11 +109,12 @@ def prepare(root, data):
             p.unlink()
         elif p.is_dir():
             shutil.rmtree(p)
-    for rel in ('var/log', 'var/crash', 'var/backups', 'var/lib/NetworkManager',
+    for rel in ('tmp', 'var/tmp', 'var/log', 'var/crash', 'var/backups', 'var/lib/NetworkManager',
                 'var/lib/bluetooth', 'var/lib/upower', 'var/lib/dhcp',
                 'etc/NetworkManager/system-connections', 'var/lib/systemd/coredump',
                 'var/cache/apt/archives/partial'):
         safe_path(root, rel).mkdir(parents=True, exist_ok=True)
+    for rel in ('tmp','var/tmp'):safe_path(root,rel).chmod(0o1777)
     ssh = safe_path(root, 'etc/ssh')
     if ssh.is_symlink(): raise ValueError('SSH directory cannot be a symlink')
     for p in ssh.glob('ssh_host_*'):

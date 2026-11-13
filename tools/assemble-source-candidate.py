@@ -16,7 +16,7 @@ import sys
 def assemble(args):
     output=args.output.resolve()
     if output.exists() or not output.parent.is_dir():raise ValueError('output must be new with an existing parent')
-    for name in ('root','data','kernel','drivers'):
+    for name in ('root','data','kernel','drivers','speaker_source'):
         value=getattr(args,name)
         if value.is_symlink() or not value.is_dir():raise ValueError(name+' must be a real directory')
         src=value.resolve()
@@ -32,9 +32,10 @@ def assemble(args):
     subprocess.run([sys.executable,str(here/'stage-source-distribution.py'),
                     '--root',str(args.root.resolve()),'--data',str(args.data.resolve()),
                     '--kernel',str(args.kernel.resolve()),'--drivers',str(args.drivers.resolve()),
+                    '--speaker-source',str(args.speaker_source.resolve()),
                     '--output',str(staged)],check=True)
     cmd=[sys.executable,str(here/'build-source-distribution.py'),
-         '--stage',str(staged),'--output',str(bundle),'--require-component-match',
+         '--stage',str(staged),'--output',str(bundle),'--require-component-match','--require-speaker',
          '--version',args.version]
     for name in ('loader','ram_kernel','ram_dtb','installer','lnx'):
         cmd.extend(['--'+name.replace('_','-'),str(getattr(args,name).resolve())])
@@ -47,7 +48,7 @@ def assemble(args):
 
 def main(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
-    for name in ('root','data','kernel','drivers','loader','ram-kernel','ram-dtb','installer','lnx','output'):
+    for name in ('root','data','kernel','drivers','speaker-source','loader','ram-kernel','ram-dtb','installer','lnx','output'):
         p.add_argument('--'+name,type=Path,required=True)
     p.add_argument('--version',default='source-candidate')
     a=p.parse_args(argv)

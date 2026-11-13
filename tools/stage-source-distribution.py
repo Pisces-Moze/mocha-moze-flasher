@@ -14,7 +14,7 @@ import subprocess
 import sys
 
 
-def stage(root, data, output, kernel=None, drivers=None):
+def stage(root, data, output, kernel=None, drivers=None, speaker_source=None):
     root, data, output = Path(root), Path(data), Path(output)
     if root.is_symlink() or data.is_symlink() or not root.is_dir() or not data.is_dir():
         raise ValueError('source APP and UDA must be real directories')
@@ -32,6 +32,8 @@ def stage(root, data, output, kernel=None, drivers=None):
         raise ValueError('kernel and drivers must be supplied together')
     if kernel is not None and any(Path(p).is_symlink() or not Path(p).is_dir() for p in (kernel,drivers)):
         raise ValueError('kernel and drivers must be real directories')
+    if speaker_source is not None and (kernel is None or not (Path(speaker_source)/'audio').is_dir()):
+        raise ValueError('speaker source requires matching kernel and drivers')
     if not shutil.which('rsync'):
         raise ValueError('rsync is required')
     if shutil.disk_usage(output.parent).free < 4*1024**3:
@@ -43,6 +45,10 @@ def stage(root, data, output, kernel=None, drivers=None):
     for source,dest in ((root,app),(data,uda)):
         subprocess.run(['rsync','-aHAX','--numeric-ids','--one-file-system',
                         str(source)+'/',str(dest)+'/'],check=True)
+    if speaker_source is not None:
+        subprocess.run([sys.executable,str(here/'install-source-speaker.py'),
+                        '--root',str(app),'--kernel',str(Path(kernel).resolve()),
+                        '--drivers',str(Path(drivers).resolve()),'--source',str(Path(speaker_source).resolve())],check=True)
     (app/'.mocha-source-image-copy').write_text(json.dumps({'schema':1,'purpose':'source-image-staging'}))
     subprocess.run([sys.executable,str(here/'prepare-source-distribution.py'),
                     '--root',str(app),'--data',str(uda)],check=True)
@@ -53,7 +59,7 @@ def stage(root, data, output, kernel=None, drivers=None):
                         '--root',str(app),'--kernel',str(Path(kernel).resolve()),
                         '--drivers',str(Path(drivers).resolve())],check=True)
     report={'schema':1,'stage':'source-desktop-copy','ready_to_flash':False,
-            'kernel_driver_match':kernel is not None,
+            'kernel_driver_match':kernel is not None,'speaker_staged':speaker_source is not None,
             'remaining':['privacy review','image packaging','physical-device acceptance']}
     (output/'source-stage.json').write_text(json.dumps(report,indent=2)+'\n')
     return report
@@ -66,11 +72,12 @@ def main(argv=None):
     parser.add_argument('--output',type=Path,required=True)
     parser.add_argument('--kernel',type=Path,help='matching source kernel output')
     parser.add_argument('--drivers',type=Path,help='matching source external-driver output')
+    parser.add_argument('--speaker-source',type=Path,help='Mocha driver source checkout')
     args=parser.parse_args(argv)
     if not hasattr(os,'geteuid') or os.geteuid()!=0:
         parser.error('Linux root is required for ownership and xattrs')
     try:
-        print(json.dumps(stage(args.root,args.data,args.output,args.kernel,args.drivers),indent=2))
+        print(json.dumps(stage(args.root,args.data,args.output,args.kernel,args.drivers,args.speaker_source),indent=2))
     except (OSError,ValueError,subprocess.SubprocessError) as exc:
         parser.error(str(exc))
     return 0

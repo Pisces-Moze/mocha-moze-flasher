@@ -21,7 +21,7 @@ def load(name, filename):
     return module
 
 
-def validate(stage, output, inputs, require_components=False):
+def validate(stage, output, inputs, require_components=False, require_speaker=False):
     stage,output=Path(stage),Path(output)
     if stage.is_symlink() or not stage.is_dir(): raise ValueError('stage must be a real directory')
     stage,output=stage.resolve(),output.resolve()
@@ -34,6 +34,8 @@ def validate(stage, output, inputs, require_components=False):
         raise ValueError('unexpected source stage report')
     if require_components and report.get('kernel_driver_match') is not True:
         raise ValueError('kernel and external driver matching was not checked')
+    if require_speaker and report.get('speaker_staged') is not True:
+        raise ValueError('speaker initialization was not staged')
     for name,path in inputs.items():
         if path.is_symlink() or not path.is_file() or not path.stat().st_size:
             raise ValueError('missing or symlinked boot input: '+name)
@@ -64,10 +66,11 @@ def main(argv=None):
     p.add_argument('--version',default='source-candidate')
     p.add_argument('--require-component-match',action='store_true',
                    help='require staged kernel and driver build outputs to have been compared')
+    p.add_argument('--require-speaker',action='store_true',help='require speaker service to be staged')
     a=p.parse_args(argv)
     if not hasattr(os,'geteuid') or os.geteuid()!=0:p.error('Linux root required')
     inputs={name:getattr(a,name) for name in ('loader','ram_kernel','ram_dtb','installer','lnx')}
-    try: stage,output,builder=validate(a.stage,a.output,inputs,a.require_component_match)
+    try: stage,output,builder=validate(a.stage,a.output,inputs,a.require_component_match,a.require_speaker)
     except (OSError,ValueError,RuntimeError,json.JSONDecodeError) as exc:p.error(str(exc))
     repo=Path(__file__).resolve().parents[1]
     output.mkdir(mode=0o700);work=output/'private-work';work.mkdir(mode=0o700)
