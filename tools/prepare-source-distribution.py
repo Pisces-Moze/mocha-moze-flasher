@@ -18,7 +18,7 @@ MARKER_CONTENT = {'schema': 1, 'purpose': 'source-image-staging'}
 PRIVATE_NAMES = {'authorized_keys', 'known_hosts', 'cookies.sqlite', 'places.sqlite',
                  'key4.db', 'logins.json', 'sessionstore.jsonlz4',
                  'recovery.jsonlz4', 'recovery.baklz4'}
-PURGE = ('.mocha-source-rootfs-build', 'root/.ssh', 'home/mocha/.ssh', 'root/.bash_history', 'home/mocha/.bash_history', 'home/mocha/.cache',
+PURGE = ('.mocha-source-rootfs-build', 'debootstrap', 'root/.ssh', 'home/mocha/.ssh', 'root/.bash_history', 'home/mocha/.bash_history', 'home/mocha/.cache',
          'home/mocha/.local/state', 'root/.config', 'tmp', 'var/tmp', 'var/log', 'var/crash',
          'var/backups', 'var/cache/apt/archives', 'var/lib/NetworkManager', 'var/lib/bluetooth',
          'var/lib/upower', 'var/lib/dhcp', 'etc/NetworkManager/system-connections',

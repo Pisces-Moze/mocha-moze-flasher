@@ -29,6 +29,9 @@ def install(root,data,components,adapter,upstream,proot,qemu,video):
         shutil.copy2(adapter/'tablet'/name,libexec/name);(libexec/name).chmod(0o755)
     for name in ('mocha-input-method','mocha-keyboard','mocha-touch-nav'):
         shutil.copy2(adapter/'tablet'/name,bin_dir/name);(bin_dir/name).chmod(0o755)
+    appdir=root/'usr/local/share/applications';appdir.mkdir(parents=True,exist_ok=True)
+    for name in ('mocha-keyboard.desktop','mocha-input-method.desktop'):
+        shutil.copy2(adapter/'tablet'/name,appdir/name)
     release=libexec/'mocha-tablet-release/mesa';(release/'lib').mkdir(parents=True,exist_ok=True)
     for link,target in ((release/'lib/arm-linux-gnueabihf','/opt/mocha-mesa-candidate/lib/arm-linux-gnueabihf'),
                         (release/'dri','/opt/mocha-mesa-candidate/lib/arm-linux-gnueabihf/dri'),
