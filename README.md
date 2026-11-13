@@ -41,6 +41,8 @@ docker run --rm --memory=4g -v /path/on/linux:/build mocha-source-builder \
 
 Docker 基础镜像地址可通过 `--build-arg DEBIAN_IMAGE=镜像地址/debian:trixie` 替换。若构建机没有可用的 GitHub 镜像或 Debian 软件源，需替换为该机器可访问的镜像地址。
 
+目前已用分阶段构建产物生成包含 3 GiB APP、桌面及扬声器配置的源码候选包；这次复用了已有的 RAM 引导组件，还未进行实机启动验收。系统使用 Debian 自带 Firefox，尚不能宣称 Firefox 网页视频硬解可用。
+
 该命令不会访问平板。构建与组装已串联，但**尚未完成从头到尾的实际运行验证**；即使生成候选包也会以非零状态结束，**不会自动刷机**。`--work` 必须是尚不存在的 Linux 文件系统目录，需要 Python 3.12 或更新版本、构建工具链及至少 20 GiB 空间。可使用 `--mesa-url` 指定 HTTPS 源码镜像，或通过 `--mesa-archive` 指定已下载的 Mesa 25.0.7 源码包；脚本会校验哈希。可追加 `--device-root /path/to/offline-root`，从本人已检查的离线系统副本提取板级数据。支持 `target-capture-v1` 的候选安装包会在 Fastboot 临时启动的 RAM 环境中从目标设备自动提取板级数据；已在一台原型机上完成只读采集与电脑备份校验，格式化后的恢复环节仍需实机验收。
 
 ## 获取系统源码
