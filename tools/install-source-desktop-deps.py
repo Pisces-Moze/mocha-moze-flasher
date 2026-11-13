@@ -43,12 +43,14 @@ def install(root, proot, qemu):
     if not proot.is_file() or not os.access(proot,os.X_OK) or not qemu.is_file() or not os.access(qemu,os.X_OK):
         raise ValueError('working PRoot and QEMU executables are required')
     policy=root/'usr/sbin/policy-rc.d'
-    if policy.parent.is_symlink() or policy.is_symlink() or policy.exists():
+    if policy.parent.is_symlink() or policy.is_symlink():
         raise ValueError('refusing to overwrite existing service policy')
     policy.parent.mkdir(parents=True,exist_ok=True)
-    # Exclusive creation means we never replace an existing administrator file.
-    with policy.open('x',encoding='ascii') as stream:stream.write('#!/bin/sh\nexit 101\n')
-    policy.chmod(0o755)
+    if policy.exists():
+        if policy.read_text()!='#!/bin/sh\nexit 101\n':raise ValueError('refusing to overwrite existing service policy')
+    else:
+        with policy.open('x',encoding='ascii') as stream:stream.write('#!/bin/sh\nexit 101\n')
+        policy.chmod(0o755)
     env=dict(os.environ,PROOT_NO_SECCOMP='1',DEBIAN_FRONTEND='noninteractive')
     prefix=[str(proot.resolve()),'-r',str(root),'-q',str(qemu.resolve()),'-b','/dev',
             '-b','/etc/resolv.conf','-w','/']
