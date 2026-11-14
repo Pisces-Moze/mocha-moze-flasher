@@ -28,6 +28,7 @@ def main(argv=None):
     parser.add_argument('--jobs', type=int, default=4)
     parser.add_argument('--git-mirror', help='HTTPS GitHub mirror prefix')
     parser.add_argument('--git-mirror-fallback', help='Optional second HTTPS GitHub mirror prefix')
+    parser.add_argument('--resume-sources', action='store_true', help='resume an interrupted initial source fetch')
     parser.add_argument('--mesa-archive',type=Path,help='optional previously downloaded Mesa source archive')
     parser.add_argument('--mesa-url',help='optional HTTPS Mesa source mirror')
     parser.add_argument('--debian-mirror',default='https://mirrors.tuna.tsinghua.edu.cn/debian')
@@ -41,8 +42,10 @@ def main(argv=None):
     if not 1 <= args.jobs <= 32:
         parser.error('jobs must be between 1 and 32')
     work = args.work.resolve()
-    if work.exists():
+    if work.exists() and not args.resume_sources:
         parser.error('work directory must not exist')
+    if args.resume_sources and (not work.is_dir() or (work/'desktop-upstream').exists()):
+        parser.error('resume-sources requires an existing work directory before the desktop source stage')
     if not work.parent.is_dir():
         parser.error('work parent must already exist')
     if args.device_root is not None:
@@ -68,10 +71,10 @@ def main(argv=None):
     board = load('extract_board_data', 'extract-board-data.py')
     preflight = load('source_preflight', 'preflight-source-build.py')
     fetch.check_environment(work)
-    work.mkdir(mode=0o700)
+    work.mkdir(mode=0o700,exist_ok=args.resume_sources)
     lock = Path(__file__).resolve().parents[1] / 'sources.lock.json'
     sources, firmware, kernel = work/'sources', work/'firmware', work/'kernel'
-    fetch.fetch(lock, sources, args.git_mirror, args.git_mirror_fallback)
+    fetch.fetch(lock, sources, args.git_mirror, args.git_mirror_fallback, args.resume_sources)
     desktop.fetch(sources, work/'desktop-upstream',
                   Path(__file__).resolve().parents[1]/'desktop-upstream.lock.json',
                   git_mirror=args.git_mirror, git_mirror_fallback=args.git_mirror_fallback)

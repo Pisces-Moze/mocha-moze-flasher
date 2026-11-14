@@ -36,11 +36,11 @@ def load_lock(path):
     return rows
 
 
-def fetch(lock, destination, git_mirror=None, git_mirror_fallback=None):
+def fetch(lock, destination, git_mirror=None, git_mirror_fallback=None, resume=False):
     rows = load_lock(lock)
     check_environment(destination)
     destination = Path(destination).resolve()
-    if destination.exists() and any(destination.iterdir()):
+    if destination.exists() and any(destination.iterdir()) and not resume:
         raise ValueError('Source destination must be new or empty')
     destination.mkdir(parents=True, exist_ok=True)
     env = os.environ.copy()
@@ -53,8 +53,18 @@ def fetch(lock, destination, git_mirror=None, git_mirror_fallback=None):
             raise ValueError('Git mirror must use HTTPS')
         urls = [f'{value.rstrip("/")}/Pisces-Moze/{name}.git' for value in mirrors]
         print(f'Fetching {name} at {commit}', flush=True)
-        subprocess.run(['git', 'init', str(target)], check=True, env=env)
-        subprocess.run(['git', '-C', str(target), 'remote', 'add', 'origin', urls[0]], check=True, env=env)
+        if target.exists():
+            if not resume or not (target/'.git').is_dir():
+                raise ValueError('Existing source is not a resumable checkout: '+name)
+            head=subprocess.run(['git','-C',str(target),'rev-parse','HEAD'],capture_output=True,text=True,env=env)
+            if head.returncode==0:
+                if head.stdout.strip()!=commit or subprocess.check_output(['git','-C',str(target),'status','--porcelain'],text=True,env=env).strip():
+                    raise ValueError('Existing checkout differs from source lock: '+name)
+                print('Reusing verified checkout: '+name,flush=True)
+                continue
+        else:
+            subprocess.run(['git', 'init', str(target)], check=True, env=env)
+            subprocess.run(['git', '-C', str(target), 'remote', 'add', 'origin', urls[0]], check=True, env=env)
         for index,url in enumerate(urls):
             try:
                 subprocess.run(['git', '-C', str(target), 'fetch', '--depth=1', url, commit], check=True, env=env, timeout=1200)
@@ -75,8 +85,9 @@ def main():
     p.add_argument('--lock', type=Path, default=Path(__file__).resolve().parents[1] / 'sources.lock.json')
     p.add_argument('--git-mirror', help='HTTPS prefix for GitHub, e.g. https://ghproxy.net/https://github.com')
     p.add_argument('--git-mirror-fallback', help='Optional second HTTPS GitHub mirror prefix')
+    p.add_argument('--resume', action='store_true', help='resume an interrupted source fetch')
     a = p.parse_args()
-    fetch(a.lock, a.dest, a.git_mirror, a.git_mirror_fallback)
+    fetch(a.lock, a.dest, a.git_mirror, a.git_mirror_fallback, a.resume)
 
 
 if __name__ == '__main__':
