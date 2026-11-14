@@ -113,6 +113,7 @@ def main(argv=None):
     video_cmd=[sys.executable,str(tools/'build-source-video.py'),'--adapter',str(adapter),
                '--out',str(video),'--jobs',str(min(args.jobs,4)),'--debian-mirror',args.debian_mirror]
     if args.git_mirror:video_cmd+=['--github-mirror',args.git_mirror]
+    if args.git_mirror_fallback:video_cmd+=['--github-mirror-fallback',args.git_mirror_fallback]
     subprocess.run(video_cmd,check=True)
     data.mkdir()
     subprocess.run([sys.executable,str(tools/'install-source-desktop.py'),'--root',str(root),

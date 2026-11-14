@@ -11,7 +11,7 @@ import sys
 import urllib.request
 
 
-def build(adapter,out,ffmpeg,mpv,mpvpaper,sysroot,pkgconfig,cross,jobs,debian_mirror,github_mirror):
+def build(adapter,out,ffmpeg,mpv,mpvpaper,sysroot,pkgconfig,cross,jobs,debian_mirror,github_mirror,github_mirror_fallback=None):
     adapter,out=(Path(adapter).resolve(),Path(out).resolve())
     if not 1<=jobs<=4:raise ValueError('jobs must be between 1 and 4')
     if out.exists():raise ValueError('output must be new')
@@ -25,9 +25,18 @@ def build(adapter,out,ffmpeg,mpv,mpvpaper,sysroot,pkgconfig,cross,jobs,debian_mi
         path=archives/name
         if provided is not None:shutil.copyfile(provided,path)
         else:
-            if github_mirror and url.startswith('https://github.com/'):
-                url=github_mirror.rstrip('/')+'/'+url.removeprefix('https://github.com/')
-            with urllib.request.urlopen(url,timeout=120) as src,path.open('wb') as dst:shutil.copyfileobj(src,dst)
+            urls=[url]
+            if url.startswith('https://github.com/'):
+                mirrors=[v for v in (github_mirror,github_mirror_fallback) if v]
+                if mirrors:urls=[v.rstrip('/')+'/'+url.removeprefix('https://github.com/') for v in mirrors]
+            for index,source in enumerate(urls):
+                try:
+                    with urllib.request.urlopen(source,timeout=120) as src,path.open('wb') as dst:shutil.copyfileobj(src,dst)
+                    break
+                except (OSError,TimeoutError):
+                    path.unlink(missing_ok=True)
+                    if index==len(urls)-1:raise
+                    print('Video source download failed; trying the next mirror',flush=True)
         fetched.append(path)
     ffmpeg,mpv,mpvpaper=fetched
     if sysroot is None:
@@ -86,8 +95,9 @@ def main():
     for name in ('ffmpeg','mpv','mpvpaper','sysroot','pkgconfig','cross'):p.add_argument('--'+name,type=Path)
     p.add_argument('--debian-mirror',default='https://mirrors.tuna.tsinghua.edu.cn/debian')
     p.add_argument('--github-mirror')
+    p.add_argument('--github-mirror-fallback')
     p.add_argument('--jobs',type=int,default=2);a=p.parse_args()
-    try:build(a.adapter,a.out,a.ffmpeg,a.mpv,a.mpvpaper,a.sysroot,a.pkgconfig,a.cross,a.jobs,a.debian_mirror,a.github_mirror)
+    try:build(a.adapter,a.out,a.ffmpeg,a.mpv,a.mpvpaper,a.sysroot,a.pkgconfig,a.cross,a.jobs,a.debian_mirror,a.github_mirror,a.github_mirror_fallback)
     except (OSError,ValueError,KeyError,subprocess.SubprocessError) as exc:p.error(str(exc))
 
 
