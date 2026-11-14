@@ -25,6 +25,14 @@ Windows 需要 OpenSSH（`ssh`、`ssh-keygen`）、Fastboot 与 RNDIS 驱动，�
 
 ## 自动源码准备（开发阶段）
 
+Windows 用户也可以使用实验性的精简 QEMU 构建入口，不需要 Docker Desktop。安装 QEMU（确保 `qemu-system-x86_64` 和 `qemu-img` 在 PATH 中），启用 Windows Hypervisor Platform，并准备 Debian 13 **genericcloud amd64** qcow2 镜像；镜像应从可信来源取得并校验。设置环境变量 `MOCHA_DEBIAN_QCOW2` 指向该镜像后，运行 `Build-QEMU-Mocha.cmd`。也可运行：
+
+```powershell
+py tools/build-source-qemu.py --base C:\path\debian-13-genericcloud-amd64.qcow2 --work D:\mocha-builds
+```
+
+默认使用 4 GiB 内存、4 个 CPU 和可按需增长的 64 GiB 磁盘，宿主机至少需 35 GiB 空闲空间。虚拟机使用国内 Debian 镜像和 GitHub 代理构建，完成后将候选包复制到构建目录；不会访问或刷写平板。首次运行仍需下载大量源码及依赖。此入口尚未完成从零构建实测。
+
 Windows 用户安装并启动 Docker Desktop、安装 Python 3 后，可以双击仓库根目录的 `Build-Source-Mocha.cmd`。入口会构建 Docker 环境，通过国内镜像拉取固定版本源码，并把候选包复制到 `source-candidates/`。Docker 构建目录保留在命名卷中以便排查。需要有足够的 Docker 磁盘空间；平板无需连接。本入口目前只构建候选包，不会自动刷机。
 
 在 Linux 构建机上可使用下面的实验入口拉取固定版本源码和固件，构建内核、驱动、U-Boot、桌面及播放器，并尝试组装候选包：
