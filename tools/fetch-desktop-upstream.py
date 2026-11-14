@@ -55,7 +55,7 @@ def fetch(workspace, output, lock, vendor_file=None, git_mirror=None, git_mirror
         subprocess.run(['git','-C',str(dest),'remote','add','origin',urls[0]],check=True,env=env)
         for index,fetch_url in enumerate(urls):
             try:
-                subprocess.run(['git','-C',str(dest),'fetch','--depth=1',fetch_url,commit],check=True,env=env,timeout=300)
+                subprocess.run(['git','-C',str(dest),'fetch','--depth=1',fetch_url,commit],check=True,env=env,timeout=1200)
                 break
             except (subprocess.CalledProcessError,subprocess.TimeoutExpired):
                 if index==len(urls)-1:raise
