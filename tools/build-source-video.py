@@ -43,7 +43,7 @@ def build(adapter,out,ffmpeg,mpv,mpvpaper,sysroot,pkgconfig,cross,jobs,debian_mi
         deps=out/'deps';deps.mkdir();sysroot=deps/'sysroot'
         packages=['libplacebo-dev:armhf','libplacebo349:armhf','libass-dev:armhf','libass9:armhf',
                   'libvulkan-dev:armhf','libvulkan1:armhf','libunibreak-dev:armhf','libunibreak6:armhf',
-                  'libxxhash-dev:armhf','libxxhash0:armhf']
+                  'libxxhash-dev:armhf','libxxhash0:armhf','liblua5.2-dev:armhf','liblua5.2-0:armhf']
         (deps/'lists/partial').mkdir(parents=True);(deps/'archives/partial').mkdir(parents=True)
         source=deps/'sources.list';source.write_text('deb [arch=armhf signed-by=/usr/share/keyrings/debian-archive-keyring.gpg] '+debian_mirror+' trixie main\n')
         options=['-o','Dir::Etc::sourcelist='+str(source),'-o','Dir::Etc::sourceparts=-',
