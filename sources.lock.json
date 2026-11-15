@@ -15,11 +15,11 @@
     },
     {
       "name": "mocha-moze-desktop",
-      "commit": "99f7b32d6e1d23aeceefaf359bd26f80c5f265c1"
+      "commit": "17b612a229ce8749b3df254f7cf1f4a55b9c5219"
     },
     {
       "name": "mocha-moze-debian",
-      "commit": "7b2bd69a1f76bd248985b5cfd1d20555df951acc"
+      "commit": "cf190e2684670f10e4f80e5e899e1dc6ae4ff624"
     },
     {
       "name": "mocha-moze-firmware-private",

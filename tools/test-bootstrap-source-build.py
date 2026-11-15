@@ -53,7 +53,7 @@ class BootstrapTests(unittest.TestCase):
             self.assertEqual([Path(call.args[0][1]).name for call in run.call_args_list],
                              ['build-source-kernel.py','build-source-drivers.py','build-source-boot.py','build-source-desktop.py',
                               'build-source-rootfs.py','build-source-ram.py','install-source-desktop-deps.py','install-source-firmware.py',
-                              'build-initramfs.sh','install-source-drivers.py','build-source-video.py','install-source-desktop.py',
+                              'install-source-drivers.py','build-initramfs.sh','build-source-video.py','install-source-desktop.py',
                               'assemble-source-candidate.py'])
             self.assertEqual((Path(d)/'new/rootfs/boot/initramfs.cpio.gz').read_bytes(), b'final initramfs')
             self.assertTrue((Path(d)/'new/source-build-status.json').exists())

@@ -76,6 +76,8 @@ export LD_LIBRARY_PATH=/opt/mocha-mesa-candidate/lib/arm-linux-gnueabihf
 export LIBGL_DRIVERS_PATH=/opt/mocha-mesa-candidate/lib/arm-linux-gnueabihf/dri
 export GBM_BACKENDS_PATH=/opt/mocha-mesa-candidate/lib/arm-linux-gnueabihf/gbm
 export MOCHA_DOCK_LINEAR_ICONS=1
+export MOCHA_NATIVE_FENCE=1
+export MOCHA_TOUCH_LOCK_KEYBOARD=1
 export GTK_IM_MODULE=fcitx5
 export QT_IM_MODULE=fcitx
 export XMODIFIERS=@im=fcitx
@@ -85,12 +87,18 @@ export SDL_IM_MODULE=fcitx
     if '# Mocha graphical session' not in original:
         profile.write_text(original+'\n# Mocha graphical session\n'+graphics+
                            'if [ "$(tty)" = /dev/tty1 ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then\n'
-                           '  export XDG_SESSION_TYPE=wayland\n  exec /usr/local/bin/niri --session\nfi\n')
+                           '  export XDG_SESSION_TYPE=wayland\n'
+                           '  export PATH="$HOME/.local/bin:$PATH"\n'
+                           '  exec /usr/local/bin/niri --session\nfi\n')
     envdir=home/'.config/environment.d';envdir.mkdir(parents=True,exist_ok=True)
     (envdir/'70-mocha-gpu.conf').write_text(graphics.replace('export ',''))
     system=root/'etc/systemd/system';system.mkdir(parents=True,exist_ok=True)
     modules=root/'etc/modules-load.d';modules.mkdir(parents=True,exist_ok=True)
     (modules/'mocha-input.conf').write_text('uhid\nuinput\n')
+    logind = root/'etc/systemd/logind.conf.d'
+    logind.mkdir(parents=True, exist_ok=True)
+    (logind/'70-mocha-buttons.conf').write_text(
+        '[Login]\nHandlePowerKey=ignore\nHandlePowerKeyLongPress=ignore\n')
     hardware='''[Unit]
 Description=Mocha GPU and backlight before desktop
 After=local-fs.target systemd-udev-trigger.service

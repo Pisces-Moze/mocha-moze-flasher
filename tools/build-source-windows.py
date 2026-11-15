@@ -20,6 +20,7 @@ def main():
     p.add_argument('--git-mirror-fallback', default='https://ghproxy.vip/https://github.com')
     p.add_argument('--debian-image', default='debian:trixie')
     p.add_argument('--debian-mirror', default='https://mirrors.tuna.tsinghua.edu.cn/debian')
+    p.add_argument('--cuda-runtime', type=Path, help='verified open Mocha CUDA runtime archive')
     args = p.parse_args()
     if not 1 <= args.jobs <= 32:
         p.error('jobs must be between 1 and 32')
@@ -34,11 +35,17 @@ def main():
              '--build-arg', 'DEBIAN_IMAGE=' + args.debian_image,
              '--build-arg', 'DEBIAN_MIRROR=' + args.debian_mirror, str(repo)], check=True)
         run(['docker', 'volume', 'create', volume], check=True)
-        result = run(['docker', 'run', '--name', name, '-v', volume + ':/build',
+        container = ['docker', 'run', '--name', name, '-v', volume + ':/build']
+        cuda_args = []
+        if args.cuda_runtime is not None:
+            archive = args.cuda_runtime.resolve(strict=True)
+            container += ['--mount', f'type=bind,source={archive},target=/tmp/mocha-cuda.tar.gz,readonly']
+            cuda_args = ['--cuda-runtime', '/tmp/mocha-cuda.tar.gz']
+        result = run(container + [
                       'mocha-source-builder', '--work', '/build/source',
                       '--jobs', str(args.jobs), '--git-mirror', args.git_mirror,
                       '--git-mirror-fallback', args.git_mirror_fallback,
-                      '--debian-mirror', args.debian_mirror])
+                      '--debian-mirror', args.debian_mirror, *cuda_args])
         # The bootstrap exits 2 when it has built a candidate which is not
         # yet approved by physical-device acceptance.
         if result.returncode not in (0, 2):

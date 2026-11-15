@@ -17,6 +17,9 @@ REQUIRED_ROOT = {
     'default login metadata': 'etc/mocha/default-login.json',
     'Niri': 'usr/local/bin/niri',
     'Noctalia': 'usr/local/bin/noctalia',
+    'Nyxuri terminal': 'usr/bin/kitty',
+    'Nyxuri file manager': 'usr/bin/nautilus',
+    'Nyxuri clipboard history': 'usr/bin/cliphist',
     'native graphics launcher': 'usr/local/libexec/mocha-native-app',
     'wallpaper launcher': 'usr/local/bin/mpvpaper',
     'wallpaper player': 'usr/local/libexec/mocha-mpvpaper-runtime/mpvpaper',
@@ -24,6 +27,10 @@ REQUIRED_ROOT = {
     'GPU session environment': 'home/mocha/.config/environment.d/70-mocha-gpu.conf',
     'Niri configuration': 'home/mocha/.config/niri/config.kdl',
     'Nyxuri source': 'usr/local/share/mocha/nyxuri/MOCHA-UPSTREAM-COMMIT',
+    'Nyxuri wallpaper plugin': 'usr/local/share/mocha/nyxuri-official-plugins/official-plugins-main/mpvpaper/plugin.toml',
+    'power key policy': 'etc/systemd/logind.conf.d/70-mocha-buttons.conf',
+    'desktop power key handler': 'home/mocha/.config/systemd/user/mocha-buttons.service',
+    'touch keyboard': 'usr/local/libexec/mocha-touch-keyboard.py',
 }
 WALLPAPER = 'ymcymcymc-vde-cavlc-gop30-1536w-30fps.mp4'
 WALLPAPER_SHA256 = '0e6065b0288f9ce6f13028cba16b0da0c09770972dd11855a2423cb900300c71'

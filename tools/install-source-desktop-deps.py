@@ -25,6 +25,8 @@ python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1 gir1.2-gstre
 fonts-noto-core fonts-noto-cjk fonts-noto-color-emoji fonts-dejavu-core
 xdg-desktop-portal xdg-desktop-portal-gtk xdg-utils upower brightnessctl
 xwayland foot curl ca-certificates socat slurp wf-recorder inotify-tools grim wtype wl-clipboard playerctl
+kitty nautilus wlsunset fish starship fastfetch eza jq tmux fzf cliphist fonts-jetbrains-mono
+qt6-image-formats-plugins
 '''.split()
 
 

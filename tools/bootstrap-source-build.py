@@ -31,6 +31,7 @@ def main(argv=None):
     parser.add_argument('--resume-sources', action='store_true', help='resume an interrupted initial source fetch')
     parser.add_argument('--mesa-archive',type=Path,help='optional previously downloaded Mesa source archive')
     parser.add_argument('--mesa-url',help='optional HTTPS Mesa source mirror')
+    parser.add_argument('--cuda-runtime', type=Path, help='verified open Mocha CUDA runtime archive')
     parser.add_argument('--debian-mirror',default='https://mirrors.tuna.tsinghua.edu.cn/debian')
     parser.add_argument('--proot',type=Path,help='PRoot executable')
     parser.add_argument('--qemu',type=Path,help='qemu-arm executable')
@@ -111,15 +112,19 @@ def main(argv=None):
                     '--proot',str(proot),'--qemu',str(qemu)],check=True)
     subprocess.run([sys.executable,str(tools/'install-source-firmware.py'),'--root',str(root),
                     '--firmware',str(firmware)],check=True)
-    # Firmware becomes available after the base rootfs is built; regenerate
-    # the eMMC initramfs so early Bluetooth and regulatory requests can find it.
+    subprocess.run([sys.executable,str(tools/'install-source-drivers.py'),'--root',str(root),
+                    '--drivers',str(work/'drivers'),'--kernel',str(kernel)],check=True)
+    if args.cuda_runtime is not None:
+        subprocess.run([sys.executable, str(tools/'install-source-cuda.py'), '--root', str(root),
+                        '--archive', str(args.cuda_runtime.resolve()), '--sources',
+                        str(sources/'mocha-moze-drivers/cuda')], check=True)
+    # Put early Bluetooth firmware, regulatory data and the panel backlight
+    # module in the eMMC initramfs after their respective stages install them.
     init_key=work/'initramfs-placeholder.pub';init_key.write_text('placeholder\n')
     final_initramfs=work/'initramfs-final.cpio.gz'
     subprocess.run(['bash',str(debian/'tools/build-initramfs.sh'),str(root),str(init_key),
                     str(final_initramfs),'emmc'],check=True)
     final_initramfs.replace(root/'boot/initramfs.cpio.gz')
-    subprocess.run([sys.executable,str(tools/'install-source-drivers.py'),'--root',str(root),
-                    '--drivers',str(work/'drivers'),'--kernel',str(kernel)],check=True)
     video_cmd=[sys.executable,str(tools/'build-source-video.py'),'--adapter',str(adapter),
                '--out',str(video),'--jobs',str(min(args.jobs,4)),'--debian-mirror',args.debian_mirror]
     if args.git_mirror:video_cmd+=['--github-mirror',args.git_mirror]

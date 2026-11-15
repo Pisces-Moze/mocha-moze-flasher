@@ -54,7 +54,8 @@ def build(workspace,upstream,output,jobs=4,mesa_archive=None,mesa_url=MESA_URL):
     dirs=list(mesa.iterdir())
     if len(dirs)!=1 or not (dirs[0]/'VERSION').is_file():raise ValueError('unexpected Mesa archive layout')
     env=dict(os.environ,JOBS=str(jobs),MOCHA_TEGRA_EXPLICIT_FENCE='1',
-             MOCHA_WALLPAPER_VISIBILITY='1',MOCHA_TABLET_GESTURES='1')
+             MOCHA_WALLPAPER_VISIBILITY='1',MOCHA_TABLET_GESTURES='1',
+             MOCHA_TOUCH_LOCK_KEYBOARD_BUILD='1',MOCHA_HIDDEN_SPECTRUM_IDLE_BUILD='1')
     subprocess.run(['bash',str(desktop/'tools/build-niri.sh'),str(sources/'niri')],env=env,check=True)
     subprocess.run(['bash',str(desktop/'tools/build-noctalia.sh'),str(sources/'noctalia'),str(output/'noctalia')],env=env,check=True)
     subprocess.run(['bash',str(desktop/'tools/build-mesa.sh'),str(dirs[0]),str(output/'mesa')],env=env,check=True)
