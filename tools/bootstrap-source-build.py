@@ -111,6 +111,13 @@ def main(argv=None):
                     '--proot',str(proot),'--qemu',str(qemu)],check=True)
     subprocess.run([sys.executable,str(tools/'install-source-firmware.py'),'--root',str(root),
                     '--firmware',str(firmware)],check=True)
+    # Firmware becomes available after the base rootfs is built; regenerate
+    # the eMMC initramfs so early Bluetooth and regulatory requests can find it.
+    init_key=work/'initramfs-placeholder.pub';init_key.write_text('placeholder\n')
+    final_initramfs=work/'initramfs-final.cpio.gz'
+    subprocess.run(['bash',str(debian/'tools/build-initramfs.sh'),str(root),str(init_key),
+                    str(final_initramfs),'emmc'],check=True)
+    final_initramfs.replace(root/'boot/initramfs.cpio.gz')
     subprocess.run([sys.executable,str(tools/'install-source-drivers.py'),'--root',str(root),
                     '--drivers',str(work/'drivers'),'--kernel',str(kernel)],check=True)
     video_cmd=[sys.executable,str(tools/'build-source-video.py'),'--adapter',str(adapter),
