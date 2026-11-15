@@ -56,6 +56,7 @@ def install(root,data,components,adapter,upstream,proot,qemu,video):
         if not (components/component).is_dir():raise ValueError('missing built component: '+component)
     actual=subprocess.check_output(['git','-C',str(upstream/'nyxuri'),'rev-parse','HEAD'],text=True).strip()
     if actual!=NYXURI:raise ValueError('unexpected Nyxuri revision')
+    shutil.copytree(upstream/'nyxuri-font', root/'usr/local/share/fonts/mocha-nyxuri', dirs_exist_ok=True)
     for name in ('niri','noctalia','mesa/stage'):
         shutil.copytree(components/name,root,dirs_exist_ok=True,symlinks=True)
     libexec=root/'usr/local/libexec';libexec.mkdir(parents=True,exist_ok=True)

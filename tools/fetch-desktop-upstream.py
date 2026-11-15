@@ -12,6 +12,24 @@ import subprocess
 import tarfile
 import urllib.request
 
+NYXURI_FONT = {
+    'JetBrainsMonoNerdFont-Regular.ttf': (
+        'https://raw.githubusercontent.com/ryanoasis/nerd-fonts/v3.4.0/patched-fonts/JetBrainsMono/Ligatures/Regular/JetBrainsMonoNerdFont-Regular.ttf',
+        2469104, '0ec29a68b539ece7078fc714cebff0c0accb2f4948f8f7963d9f5e86633b12d9'),
+    'OFL.txt': ('https://raw.githubusercontent.com/JetBrains/JetBrainsMono/v2.304/OFL.txt',
+                4399, '30f0c136e3c88e422d0791acd97238870f9054a9729bc34cf2ff0d4ed8cac4ad'),
+}
+
+
+def fetch_nyxuri_font(destination):
+    destination.mkdir()
+    for name, (url, size, sha256) in NYXURI_FONT.items():
+        with urllib.request.urlopen(url, timeout=60) as response:
+            content = response.read(size + 1)
+        if len(content) != size or hashlib.sha256(content).hexdigest() != sha256:
+            raise ValueError('unexpected Nyxuri font asset: ' + name)
+        (destination/name).write_bytes(content)
+
 
 def extract_vendor(archive, destination):
     with tarfile.open(archive,'r:xz') as tar:
@@ -88,6 +106,7 @@ def fetch(workspace, output, lock, vendor_file=None, git_mirror=None, git_mirror
     config=output/'niri/.cargo/config.toml';config.parent.mkdir(exist_ok=True)
     shutil.copy2(desktop/'config/cargo-armhf.toml',config)
     if not (output/'niri/vendor/smithay/.cargo-checksum.json').is_file():raise ValueError('Smithay vendor metadata missing')
+    fetch_nyxuri_font(output/'nyxuri-font')
     print('DESKTOP_UPSTREAM_FETCHED; source build and device validation remain required')
 
 
