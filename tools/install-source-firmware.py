@@ -24,6 +24,10 @@ def install(root,firmware):
         if hashlib.sha256(src.read_bytes()).hexdigest()!=expected:raise ValueError('firmware hash mismatch: '+name)
         dst=(root/'usr/share/doc/mocha-firmware' if relative.parts[0]=='licenses' else root/'usr/lib/firmware')/relative
         dst.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(src,dst)
+    bt=root/'usr/lib/firmware/brcm/BCM4350C0.hcd'
+    if bt.is_file():
+        alias=bt.with_name('BCM4354.hcd')
+        if not alias.exists() and not alias.is_symlink():alias.symlink_to(bt.name)
     print('SOURCE_FIRMWARE_INSTALLED; target Wi-Fi board data is captured during installation')
 
 
