@@ -13,6 +13,28 @@ import shutil
 import subprocess
 
 NYXURI='ebafe03c9bdf1291eeb83d0f8c368d40a63ccdfd'
+
+
+def install_vde_launcher(root):
+    runtimes = list((root/'usr/local/libexec/mocha-vde-player').glob('*/build-manifest.json'))
+    if len(runtimes) != 1 or not (runtimes[0].parent/'bin/mpv').is_file():
+        raise ValueError('expected one installed VDE-capable MPV runtime')
+    prefix = '/' + runtimes[0].parent.relative_to(root).as_posix()
+    launcher = root/'usr/local/bin/mocha-mpv'
+    launcher.write_text('#!/bin/sh\n'
+                        'exec /usr/local/libexec/mocha-native-app /bin/sh -c \'\n'
+                        '  prefix=$1; shift\n'
+                        '  export LD_LIBRARY_PATH="$prefix/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"\n'
+                        '  exec "$prefix/bin/mpv" --hwdec=v4l2request "$@"\n'
+                        f"' mocha-mpv {prefix} \"$@\"\n")
+    launcher.chmod(0o755)
+    app = root/'usr/local/share/applications/mpv.desktop'
+    app.parent.mkdir(parents=True, exist_ok=True)
+    app.write_text('[Desktop Entry]\nType=Application\nName=MPV (Mocha VDE)\n'
+                   'Exec=/usr/local/bin/mocha-mpv -- %U\nIcon=mpv\nTerminal=false\n'
+                   'Categories=AudioVideo;Player;\nMimeType=video/mp4;video/x-matroska;video/webm;\n')
+
+
 def install(root,data,components,adapter,upstream,proot,qemu,video):
     root,data,components,adapter,upstream,proot,qemu,video=map(Path,(root,data,components,adapter,upstream,proot,qemu,video))
     if root.resolve()==Path('/') or not (root/'.mocha-source-rootfs-build').is_file():
@@ -59,6 +81,7 @@ def install(root,data,components,adapter,upstream,proot,qemu,video):
                             '--holder','/opt/mocha-video/mpvpaper/build/mpvpaper-holder',
                             '--decoder-runtime','/opt/mocha-video/runtime',
                             '--backup-dir','/tmp/mocha-install-backups'],env=root_env,check=True)
+    install_vde_launcher(root)
     share=root/'usr/local/share/mocha';share.mkdir(parents=True,exist_ok=True)
     nyx=share/'nyxuri'
     shutil.copytree(upstream/'nyxuri',nyx,ignore=shutil.ignore_patterns('.git'),symlinks=True)

@@ -24,6 +24,7 @@ REQUIRED_ROOT = {
     'wallpaper launcher': 'usr/local/bin/mpvpaper',
     'wallpaper player': 'usr/local/libexec/mocha-mpvpaper-runtime/mpvpaper',
     'wallpaper player selector': 'usr/local/libexec/mocha-mpvpaper-runtime/select-player-runtime.py',
+    'VDE media launcher': 'usr/local/bin/mocha-mpv',
     'GPU session environment': 'home/mocha/.config/environment.d/70-mocha-gpu.conf',
     'Niri configuration': 'home/mocha/.config/niri/config.kdl',
     'Nyxuri source': 'usr/local/share/mocha/nyxuri/MOCHA-UPSTREAM-COMMIT',
