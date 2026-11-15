@@ -25,6 +25,8 @@ DEBIAN = 'https://sources.debian.org/data/non-free-firmware/f/firmware-nonfree/2
 WIFI_ASSETS = {
     'cypress/cyfmac4354-sdio.bin': ('brcm/brcmfmac4354-sdio.bin',
         'f6b4164c50c4406573f3671d50c2d19b370ed079035a7d76a38535e244ae41d8', 601704),
+    'cypress/cyfmac4354-sdio.clm_blob': ('brcm/brcmfmac4354-sdio.clm_blob',
+        'a72cbbaea17415d99be5c747d719cb22e6787471d047cf72fd66f9e07ab12dbd', 5750),
     'LICENCE.cypress': ('licenses/LICENCE.cypress',
         'ae0db6cc4db33941148df0f67de53e76a77b1b5a46b3165edb7040aa2750015f', 8914),
 }

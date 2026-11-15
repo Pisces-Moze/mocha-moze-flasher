@@ -39,15 +39,23 @@ class BootstrapTests(unittest.TestCase):
             stage=types.SimpleNamespace(stage=mock.Mock())
             board=types.SimpleNamespace(extract=mock.Mock())
             preflight=types.SimpleNamespace(inspect=mock.Mock(return_value={'ready_to_flash':False,'issues':['missing desktop assembler']}))
+            def build_fixture(command, **kwargs):
+                if Path(command[1]).name == 'build-initramfs.sh':
+                    boot = Path(command[2]) / 'boot'
+                    boot.mkdir(parents=True)
+                    Path(command[4]).write_bytes(b'final initramfs')
+
+            run.side_effect = build_fixture
             with mock.patch.object(m, 'load', side_effect=[fetch,desktop,stage,board,preflight]):
                 result=m.main(['--work',str(Path(d)/'new')])
             self.assertEqual(result,2)
-            self.assertEqual(run.call_count,12)
+            self.assertEqual(run.call_count,13)
             self.assertEqual([Path(call.args[0][1]).name for call in run.call_args_list],
                              ['build-source-kernel.py','build-source-drivers.py','build-source-boot.py','build-source-desktop.py',
                               'build-source-rootfs.py','build-source-ram.py','install-source-desktop-deps.py','install-source-firmware.py',
-                              'install-source-drivers.py','build-source-video.py','install-source-desktop.py',
+                              'build-initramfs.sh','install-source-drivers.py','build-source-video.py','install-source-desktop.py',
                               'assemble-source-candidate.py'])
+            self.assertEqual((Path(d)/'new/rootfs/boot/initramfs.cpio.gz').read_bytes(), b'final initramfs')
             self.assertTrue((Path(d)/'new/source-build-status.json').exists())
 
 if __name__ == '__main__': unittest.main()

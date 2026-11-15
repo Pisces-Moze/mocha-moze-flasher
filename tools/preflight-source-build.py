@@ -29,6 +29,7 @@ TOOLS = ('git', 'python3', 'bash', 'make', 'bc', 'bison', 'flex',
 # board revisions. The caller supplies their own staged firmware directory.
 FIRMWARE = {
     'wifi firmware': 'brcm/brcmfmac4354-sdio.bin',
+    'wifi regulatory firmware': 'brcm/brcmfmac4354-sdio.clm_blob',
     'wifi board data': 'brcm/brcmfmac4354-sdio.nvidia,mocha.txt',
     'bluetooth firmware': 'brcm/BCM4350C0.hcd',
 }
