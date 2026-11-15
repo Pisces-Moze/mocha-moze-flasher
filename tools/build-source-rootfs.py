@@ -8,7 +8,7 @@ import shutil
 import subprocess
 import tempfile
 
-BASE='systemd-sysv,openssh-server,dropbear-bin,busybox-static,kmod,udev,iproute2,iputils-ping,ca-certificates,dbus,dbus-daemon,dbus-user-session,network-manager,sudo'
+BASE='systemd-sysv,openssh-server,dropbear-bin,busybox-static,kmod,udev,iproute2,iputils-ping,ca-certificates,dbus,dbus-daemon,dbus-user-session,network-manager,wpasupplicant,sudo'
 
 
 def build(root,kernel,debian,proot,qemu,mirror,resume=False):
