@@ -15,6 +15,16 @@ import subprocess
 NYXURI='ebafe03c9bdf1291eeb83d0f8c368d40a63ccdfd'
 
 
+def start_buttons_with_niri(home):
+    niri = home / '.config/niri'
+    start = 'spawn-at-startup "systemctl" "--user" "--no-block" "start" "mocha-buttons.service"'
+    for name in ('config.kdl', 'mocha-tablet.kdl'):
+        config = niri / name
+        text = config.read_text(encoding='utf-8')
+        if start not in text.splitlines():
+            config.write_text(text.rstrip() + '\n\n' + start + '\n', encoding='utf-8')
+
+
 def install_vde_launcher(root):
     runtimes = list((root/'usr/local/libexec/mocha-vde-player').glob('*/build-manifest.json'))
     if len(runtimes) != 1 or not (runtimes[0].parent/'bin/mpv').is_file():
@@ -163,6 +173,7 @@ WantedBy=multi-user.target
          '-b',str(data.resolve())+':/srv/mocha-data','-w','/home/mocha','/usr/bin/python3']
     subprocess.run(cmd+['/opt/mocha-desktop-src/tools/install-nyxuri.py','--source','/usr/local/share/mocha/nyxuri',
                         '--adapter','/opt/mocha-desktop-src','--offline'],env=env,check=True)
+    start_buttons_with_niri(home)
     subprocess.run(['python3',str(adapter/'tools/install-nyxuri-wallpaper-bridge.py'),
                     '--config',str(home/'.config/noctalia'),'--plugin',str(plugin),
                     '--patches',str(adapter/'patches/vde'),'--backup',str(root/'tmp/mocha-wallpaper-bridge-backup')],check=True)
