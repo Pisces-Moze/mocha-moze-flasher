@@ -113,7 +113,7 @@ export SDL_IM_MODULE=fcitx
                            'if [ "$(tty)" = /dev/tty1 ] && [ -z "${WAYLAND_DISPLAY:-}" ]; then\n'
                            '  export XDG_SESSION_TYPE=wayland\n'
                            '  export PATH="$HOME/.local/bin:$PATH"\n'
-                           '  exec /usr/local/bin/niri --session\nfi\n')
+                           '  exec /usr/bin/systemd-cat --identifier=mocha-desktop -- /usr/local/bin/niri --session\nfi\n')
     envdir=home/'.config/environment.d';envdir.mkdir(parents=True,exist_ok=True)
     (envdir/'70-mocha-gpu.conf').write_text(graphics.replace('export ',''))
     system=root/'etc/systemd/system';system.mkdir(parents=True,exist_ok=True)
