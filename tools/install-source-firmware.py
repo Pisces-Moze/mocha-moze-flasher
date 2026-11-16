@@ -28,6 +28,10 @@ def install(root,firmware):
     if bt.is_file():
         alias=bt.with_name('BCM4354.hcd')
         if not alias.exists() and not alias.is_symlink():alias.symlink_to(bt.name)
+    if (root/'usr/lib/firmware/brcm/brcmfmac4354-sdio.bin').is_file():
+        wifi_config = root/'etc/NetworkManager/conf.d/10-mocha-wifi.conf'
+        wifi_config.parent.mkdir(parents=True, exist_ok=True)
+        wifi_config.write_text('[device]\nwifi.scan-rand-mac-address=no\n', encoding='utf-8')
     print('SOURCE_FIRMWARE_INSTALLED; target Wi-Fi board data is captured during installation')
 
 
