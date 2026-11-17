@@ -233,6 +233,14 @@ WantedBy=multi-user.target
     timesync.parent.mkdir(parents=True, exist_ok=True)
     if not timesync.is_symlink():
         timesync.symlink_to('/usr/lib/systemd/system/systemd-timesyncd.service')
+    clock_seed = root/'var/lib/systemd/timesync/clock'
+    clock_seed.parent.mkdir(parents=True, exist_ok=True)
+    clock_seed.touch()
+    localtime = root/'etc/localtime'
+    if localtime.is_symlink() or localtime.exists():
+        localtime.unlink()
+    localtime.symlink_to('/usr/share/zoneinfo/Asia/Shanghai')
+    (root/'etc/timezone').write_text('Asia/Shanghai\n', encoding='utf-8')
     for p in [home,*home.rglob('*')]:os.chown(p,1000,1000,follow_symlinks=False)
     print('SOURCE_DESKTOP_CONFIGURED; boot integration and device validation remain')
 
