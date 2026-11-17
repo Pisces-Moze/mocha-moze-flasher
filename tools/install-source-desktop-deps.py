@@ -11,7 +11,7 @@ from pathlib import Path
 import subprocess
 
 PACKAGES = '''
-locales sudo dbus dbus-daemon dbus-user-session systemd-timesyncd polkitd seatd libseat1 libinput10 libdrm2
+locales sudo dbus dbus-daemon dbus-user-session systemd-timesyncd util-linux-extra polkitd seatd libseat1 libinput10 libdrm2
 libgbm1 libegl1 libgles2 libwayland-client0 libwayland-cursor0 libwayland-egl1
 libxkbcommon0 libudev1 libpango-1.0-0 libpangocairo-1.0-0 libcairo2
 libfontconfig1 libfreetype6 libglib2.0-0t64 libsecret-1-0 libsodium23
