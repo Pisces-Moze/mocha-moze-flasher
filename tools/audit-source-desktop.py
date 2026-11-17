@@ -32,6 +32,9 @@ REQUIRED_ROOT = {
     'power key policy': 'etc/systemd/logind.conf.d/70-mocha-buttons.conf',
     'desktop power key handler': 'home/mocha/.config/systemd/user/mocha-buttons.service',
     'touch keyboard': 'usr/local/libexec/mocha-touch-keyboard.py',
+    'Wi-Fi supplicant': 'usr/sbin/wpa_supplicant',
+    'Wi-Fi D-Bus activation': 'usr/share/dbus-1/system-services/fi.w1.wpa_supplicant1.service',
+    'Wi-Fi regulatory database': 'usr/lib/firmware/regulatory.db-debian',
 }
 WALLPAPER = 'ymcymcymc-vde-cavlc-gop30-1536w-30fps.mp4'
 WALLPAPER_SHA256 = '0e6065b0288f9ce6f13028cba16b0da0c09770972dd11855a2423cb900300c71'
