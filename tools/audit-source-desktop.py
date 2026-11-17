@@ -35,6 +35,9 @@ REQUIRED_ROOT = {
     'Wi-Fi supplicant': 'usr/sbin/wpa_supplicant',
     'Wi-Fi D-Bus activation': 'usr/share/dbus-1/system-services/fi.w1.wpa_supplicant1.service',
     'Wi-Fi regulatory database': 'usr/lib/firmware/regulatory.db-debian',
+    'automatic time synchronization': 'usr/lib/systemd/system/systemd-timesyncd.service',
+    'charging display': 'usr/local/libexec/mocha-charger-ui',
+    'charging boot generator': 'etc/systemd/system-generators/mocha-charger-generator',
 }
 WALLPAPER = 'ymcymcymc-vde-cavlc-gop30-1536w-30fps.mp4'
 WALLPAPER_SHA256 = '0e6065b0288f9ce6f13028cba16b0da0c09770972dd11855a2423cb900300c71'

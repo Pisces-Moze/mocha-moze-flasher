@@ -17,12 +17,54 @@ NYXURI='ebafe03c9bdf1291eeb83d0f8c368d40a63ccdfd'
 
 def start_buttons_with_niri(home):
     niri = home / '.config/niri'
-    start = 'spawn-at-startup "systemctl" "--user" "--no-block" "start" "mocha-buttons.service"'
+    starts = [
+        'spawn-at-startup "systemctl" "--user" "--no-block" "start" "' + unit + '"'
+        for unit in ('mocha-buttons.service', 'mocha-app-freezer.service')
+    ]
     for name in ('config.kdl', 'mocha-tablet.kdl'):
         config = niri / name
         text = config.read_text(encoding='utf-8')
-        if start not in text.splitlines():
-            config.write_text(text.rstrip() + '\n\n' + start + '\n', encoding='utf-8')
+        missing = [start for start in starts if start not in text.splitlines()]
+        if missing:
+            config.write_text(text.rstrip() + '\n\n' + '\n'.join(missing) + '\n', encoding='utf-8')
+
+
+def install_charger(root, adapter):
+    source = adapter / 'charging'
+    flags = subprocess.check_output(
+        ['pkg-config', '--cflags', '--libs', 'cairo'], text=True,
+        env=dict(os.environ, PKG_CONFIG_LIBDIR='/usr/lib/arm-linux-gnueabihf/pkgconfig:/usr/share/pkgconfig')
+    ).split()
+    libexec = root / 'usr/local/libexec'
+    subprocess.run(['arm-linux-gnueabihf-gcc', '-O2', '-Wall', '-Wextra',
+                    str(source/'mocha-charger-ui.c'), *flags, '-lm', '-o',
+                    str(libexec/'mocha-charger-ui')], check=True)
+    for name in ('mocha-charge-detect.py', 'mocha-charge-policy.py', 'mocha-charger-session'):
+        target = libexec / name
+        shutil.copy2(source/name, target)
+        target.chmod(0o755)
+    generator = root/'etc/systemd/system-generators/mocha-charger-generator'
+    generator.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source/generator.name, generator)
+    generator.chmod(0o755)
+    system = root/'etc/systemd/system'
+    for name in ('mocha-charge-policy.service', 'mocha-charger.service',
+                 'mocha-charger.target', 'mocha-desktop-once.service'):
+        shutil.copy2(source/name, system/name)
+    defaults = root/'etc/default/mocha-charger'
+    defaults.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(source/'mocha-charger.default', defaults)
+    for target, units in (
+        ('multi-user.target', ('mocha-charge-policy.service', 'mocha-desktop-once.service')),
+        ('mocha-charger.target', ('mocha-charge-policy.service',)),
+    ):
+        wants = system/(target+'.wants')
+        wants.mkdir(parents=True, exist_ok=True)
+        for unit in units:
+            link = wants/unit
+            if not link.is_symlink():
+                link.symlink_to('../'+unit)
+    (root/'boot/mocha-charger.enabled').touch()
 
 
 def install_vde_launcher(root):
@@ -186,6 +228,11 @@ WantedBy=multi-user.target
         shutil.copy2(adapter/'tablet'/name,units/name)
         link=wants/name
         if not link.is_symlink():link.symlink_to('../'+name)
+    install_charger(root, adapter)
+    timesync = system/'sysinit.target.wants/systemd-timesyncd.service'
+    timesync.parent.mkdir(parents=True, exist_ok=True)
+    if not timesync.is_symlink():
+        timesync.symlink_to('/usr/lib/systemd/system/systemd-timesyncd.service')
     for p in [home,*home.rglob('*')]:os.chown(p,1000,1000,follow_symlinks=False)
     print('SOURCE_DESKTOP_CONFIGURED; boot integration and device validation remain')
 

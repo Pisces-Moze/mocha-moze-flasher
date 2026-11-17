@@ -11,14 +11,14 @@ from pathlib import Path
 import subprocess
 
 PACKAGES = '''
-locales sudo dbus dbus-daemon dbus-user-session polkitd seatd libseat1 libinput10 libdrm2
+locales sudo dbus dbus-daemon dbus-user-session systemd-timesyncd polkitd seatd libseat1 libinput10 libdrm2
 libgbm1 libegl1 libgles2 libwayland-client0 libwayland-cursor0 libwayland-egl1
 libxkbcommon0 libudev1 libpango-1.0-0 libpangocairo-1.0-0 libcairo2
 libfontconfig1 libfreetype6 libglib2.0-0t64 libsecret-1-0 libsodium23
 libpipewire-0.3-0t64 libwireplumber-0.5-0 libqalculate23 libpam0g libxml2
 libical3t64 libtomlplusplus3t64 libmd4c0 libwebp7 libwebpdemux2 libjxl0.11
 libsndfile1 libsdbus-c++2 libdisplay-info2 librsvg2-2 network-manager wpasupplicant wireless-regdb iw rfkill bluez
-pipewire wireplumber pipewire-pulse pipewire-alsa libspa-0.2-bluetooth alsa-utils firefox-esr mpv
+pipewire wireplumber pipewire-pulse pipewire-alsa pulseaudio-utils libspa-0.2-bluetooth alsa-utils firefox-esr mpv
 ffmpeg gstreamer1.0-tools gstreamer1.0-plugins-base gstreamer1.0-gl
 gstreamer1.0-plugins-good gstreamer1.0-plugins-bad gstreamer1.0-libav
 python3-gi python3-gi-cairo gir1.2-gtk-3.0 gir1.2-gtklayershell-0.1 gir1.2-gstreamer-1.0 fcitx5 fcitx5-pinyin fcitx5-frontend-gtk3
