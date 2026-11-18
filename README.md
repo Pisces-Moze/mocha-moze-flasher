@@ -1,6 +1,6 @@
 # Mocha Moze Flasher
 
-适用于已验证的 16 GB Xiaomi Mocha 平板的 Debian 安装工具。它通过原厂 Fastboot 临时启动 RAM 维护系统，将 APP 设置为 3 GiB，写入系统、恢复桌面数据并在回读校验后重启。
+适用于已验证的 16 GB Xiaomi Mocha 平板的 Debian 安装工具。它通过原厂 Fastboot 临时启动 RAM 维护系统，将 APP 设置为 3 GiB，写入系统、恢复桌面数据并在回读校验后关机。
 
 > **运行安装入口会自动清除 APP、UDA 和 cache。请先独立备份全部个人数据。** 工具备份的 GPT 和 LNX 不能恢复这些数据。仅支持工具明确识别的 16 GB Mocha 和已有的受支持分区布局。
 
@@ -18,7 +18,7 @@ r6 的修复已在现有实机系统中应用，充电动画及长按进入桌�
 
 将安装器和镜像 ZIP 分别完整解压，打开 `Mocha-Flasher.exe`，选择包含 `bundle.json` 的 `image` 目录。安装器的 `_internal` 目录需与 EXE 保持在一起。先用「检查连接和镜像」核对设备和文件，再点「开始刷写」。图形安装器支持 r6 候选镜像，包含 Fastboot 和 Python，电脑仍需 Windows OpenSSH 客户端和适用的 USB 驱动。
 
-刷写期间界面会显示当前步骤、系统写入及回读校验的进度。「打开日志目录」可找到日志和设备备份。r6 的 CUDA 自检执行权限会在首次开机前由安装器修复。如果完成校验并发出重启指令后持续黑屏，可长按电源关机后再正常开机。
+刷写期间界面会显示当前步骤、系统写入及回读校验的进度。「打开日志目录」可找到日志和设备备份。r6 的 CUDA 自检执行权限会在首次开机前由安装器修复。看到「已发出关机指令」后，等平板关机，拔掉 USB，再按电源键开机。r6 ZIP 随附的旧脚本沿用原来的重启流程。
 
 维护者可在 Windows 安装 PyInstaller 后运行 `python tools/build-flasher-exe.py --platform-tools C:\platform-tools --output dist`，从 Android platform-tools 目录打包 EXE。
 

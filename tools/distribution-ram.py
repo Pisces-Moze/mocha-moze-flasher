@@ -294,7 +294,7 @@ def finalize(args):
         stream_write(DISK+'p22',args.bytes,args.sha256)
     finally:readonly()
     state=json.loads(STATE.read_text());state['phase']='complete';STATE.write_text(json.dumps(state))
-    os.sync();print('INSTALL_COMPLETE_REBOOT_TO_DESKTOP',flush=True)
+    os.sync();print('INSTALL_WRITE_AND_READBACK_COMPLETE',flush=True)
 
 
 def main():

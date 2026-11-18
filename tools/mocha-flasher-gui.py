@@ -24,7 +24,7 @@ STAGES = {
     'data': (6, '恢复桌面数据', '正在恢复桌面资源并同步到存储。'),
     'lnx': (7, '写入并校验引导', '正在恢复 Wi-Fi 校准数据并校验引导分区。'),
     'cuda': (8, '设置 CUDA 自检权限', '正在检查自检程序的执行权限。'),
-    'reboot': (9, '发出重启指令', '写入及校验通过，安装器正在请求平板重启。'),
+    'poweroff': (9, '发出关机指令', '写入及校验通过，安装器正在请求平板完全关机。'),
 }
 
 
@@ -217,7 +217,7 @@ class App:
         if success:
             self.bar.configure(value=100)
             self.status.set('刷写和回读校验完成' if write else '连接和镜像检查通过')
-            self.hint.set('平板已收到重启指令。如果持续黑屏，长按电源关机后再开机。默认账户和密码均为 mocha。' if write else '备份个人文件后，点击「开始刷写」。')
+            self.hint.set('已发出关机指令。等平板关机后，拔掉 USB，再按电源键正常开机。默认账户和密码均为 mocha。' if write else '备份个人文件后，点击「开始刷写」。')
         else:
             self.status.set('操作未完成')
             self.hint.set('请看下方最后几行日志。若已开始写入，保持 USB 连接，以便从当前阶段恢复。' if write else '检查 Fastboot 驱动、数据线和镜像目录，再试一次。')

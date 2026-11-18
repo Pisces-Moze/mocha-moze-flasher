@@ -25,6 +25,7 @@ if errorlevel 1 (
   exit /b 1
 )
 echo Default username and password: mocha. Change the password after login.
+echo After the tablet powers off, unplug USB and press Power to boot.
 pause
 exit /b 0
 :missing

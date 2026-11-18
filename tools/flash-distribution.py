@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-only
-"""PC installer: verify bundle, RAM boot, backup GPT/LNX, restore, reboot to desktop.
+"""PC installer: verify bundle, RAM boot, backup GPT/LNX, restore and power off.
 
 Plan-only by default. --install --erase APP_UDA is the single destructive
 choice. Never uses fastboot flash/erase, never writes factory boot partitions.
@@ -224,7 +224,7 @@ class Transport:
     def success(self):
         saved=self._write_state('installed')
         print('Recovery key/known_hosts at',self.recovery,
-              'are for this RAM session only; delete that directory after the tablet reboots.',flush=True)
+              'are for this RAM session only; delete that directory after the tablet powers off.',flush=True)
         if not saved:print('Warning: could not update the session state file; inspect the recovery directory.',flush=True)
 
     def devices(self):
@@ -315,7 +315,10 @@ class Transport:
                                  stderr=subprocess.STDOUT,creationflags=NO_WINDOW)
         def report_output():
             for line in process.stdout:
-                print(line.decode('utf-8',errors='replace').rstrip(),flush=True)
+                message=line.decode('utf-8',errors='replace').rstrip()
+                if message == 'INSTALL_COMPLETE_REBOOT_TO_DESKTOP':
+                    message='INSTALL_WRITE_AND_READBACK_COMPLETE'
+                print(message,flush=True)
         reporter=threading.Thread(target=report_output)
         reporter.start()
         try:
@@ -464,15 +467,15 @@ def main(argv=None):
             print('MOCHA_STAGE cuda',flush=True)
             if manifest.get('wifi_board_data')=='target-capture-v1':
                 print(transport.remote('python3 -c '+shlex.quote(CUDA_PERMISSIONS),timeout=90),flush=True)
-            print('MOCHA_STAGE reboot',flush=True)
+            print('MOCHA_STAGE poweroff',flush=True)
             # Losing SSH here is expected only after all readbacks have succeeded.
-            transport.remote('sync; (sleep 2; /bin/busybox reboot -f) >/dev/null 2>&1 </dev/null &')
+            transport.remote('sync && { (sleep 2; /bin/busybox poweroff -f) >/dev/null 2>&1 </dev/null & }')
         except BaseException:
             if transport is not None:transport.failure()
             else:report_setup_failure(recovery,folder)
             raise
         transport.success()
-        print('Installed and verified. Reboot requested (user: mocha, password: mocha).')
+        print('Installed and verified. Power-off requested. After shutdown, unplug USB and press Power to boot (user: mocha, password: mocha).')
 
 
 if __name__=='__main__':main()
