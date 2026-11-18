@@ -23,6 +23,9 @@ def install(root, archive, sources):
     target.mkdir(parents=True)
     with tarfile.open(archive, 'r:gz') as bundle:
         bundle.extractall(target, filter='data')
+    # The pinned archive stores runtime-smoke with mode 0644.
+    for executable in ('probe-runtime-api', 'runtime-smoke'):
+        (target/'bin'/executable).chmod(0o755)
     commands = root/'usr/local/bin'
     commands.mkdir(parents=True, exist_ok=True)
     for name in RUNNERS:
