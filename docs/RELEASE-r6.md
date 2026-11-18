@@ -4,9 +4,11 @@
 
 ## 下载与安装
 
+Windows x64 可下载 `Mocha-Debian-r6-Windows-x64.zip` 和对应的 `.sha256`。完整解压后双击 `Mocha-Flasher.exe`，程序会自动找到同目录的镜像。新版安装器在校验完成后请求关机，等平板关机后拔掉 USB，再按电源键开机。CUDA 自检执行权限也由安装器在首启前修复。
+
 从 [GitHub Releases](https://github.com/Pisces-Moze/mocha-moze-flasher/releases) 下载该版本的完整 ZIP 和同名 `.sha256`；若没有附件，表示尚未完成发布。不要将旧版本的校验文件用于新包。
 
-ZIP 大小为 734787920 字节，SHA256：
+原版镜像包 `mocha-source-candidate-20261118-r6.zip` 大小为 734787920 字节，SHA256：
 
 ```text
 fe672997fdd758b7ff03681246c5c0863c39b3ed12da2aeb861c247ea36a9f47

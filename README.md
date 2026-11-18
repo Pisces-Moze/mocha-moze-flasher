@@ -16,7 +16,7 @@ r6 的修复已在现有实机系统中应用，充电动画及长按进入桌�
 
 ### Windows 图形安装器
 
-将安装器和镜像 ZIP 分别完整解压，打开 `Mocha-Flasher.exe`，选择包含 `bundle.json` 的 `image` 目录。安装器的 `_internal` 目录需与 EXE 保持在一起。先用「检查连接和镜像」核对设备和文件，再点「开始刷写」。图形安装器支持 r6 候选镜像，包含 Fastboot 和 Python，电脑仍需 Windows OpenSSH 客户端和适用的 USB 驱动。
+Windows x64 合包为 `Mocha-Debian-r6-Windows-x64.zip`。完整解压后双击 `Mocha-Flasher.exe`，程序会自动选中同目录的 `image`。先用「检查连接和镜像」核对设备和文件，再点「开始刷写」。包内含 Fastboot 和 Python，电脑仍需 Windows OpenSSH 客户端和适用的 USB 驱动。[GitHub Releases](https://github.com/Pisces-Moze/mocha-moze-flasher/releases/tag/source-candidate-20261118-r6)
 
 刷写期间界面会显示当前步骤、系统写入及回读校验的进度。「打开日志目录」可找到日志和设备备份。r6 的 CUDA 自检执行权限会在首次开机前由安装器修复。看到「已发出关机指令」后，等平板关机，拔掉 USB，再按电源键开机。r6 ZIP 随附的旧脚本沿用原来的重启流程。
 
