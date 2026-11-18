@@ -28,6 +28,10 @@ py tools/flash-distribution.py image --allow-candidate --install --erase APP_UDA
 
 默认用户名和密码均为 `mocha`，登录后运行 `passwd` 修改。普通用户的双击入口仍拒绝此候选版。
 
+如果安装器已报告写入和校验完成，但自动重启后屏幕一直黑，可以长按电源关机后再正常开机。本次实机采用这个办法进入了桌面。自动重启黑屏的原因仍待定位。
+
+r6 已包含 CUDA 兼容库。随包的 `runtime-smoke` 缺少执行权限，在平板终端运行 `sudo chmod 755 /opt/mocha-cuda-runtime/bin/runtime-smoke`，再运行 `mocha-cuda-runtime-selftest`。源码打包脚本已有权限修复，发布的 r6 ZIP 仍是原版。
+
 ## 本版修复
 
 - 补齐 Wi-Fi supplicant、无线管理工具和监管数据库；设备自己的校准数据由安装器保留。
@@ -42,4 +46,4 @@ py tools/flash-distribution.py image --allow-candidate --install --erase APP_UDA
 
 完整 ZIP、内部七项文件哈希及安装计划已核对。上述修复已装到现有系统，充电动画、方向和长按进入桌面已获实机确认；中文首候选与壁纸覆盖策略也已在现有系统检查。
 
-r6 完整镜像重新擦除安装后的验收仍待完成，原始 2 GiB 布局的扩容也不在本版已完成验收范围内。本版不宣称 Firefox 网页视频硬解已通过，亦不将 CUDA 兼容运行库描述为完整 NVIDIA 官方运行时。
+r6 已在一台 APP 为 3 GiB 的设备完成擦除安装和回读校验，手动关机再开机后桌面和触控正常。原始 2 GiB 布局扩容、自动重启后的显示、Firefox 网页视频硬解及这次刷机后的 CUDA 计算自检仍待验证。
