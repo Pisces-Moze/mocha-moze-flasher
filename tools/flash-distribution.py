@@ -17,11 +17,62 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import time
 import zlib
 from ram_archive import personalize
 
 BASE=Path(__file__).resolve().parent
+NO_WINDOW=getattr(subprocess,'CREATE_NO_WINDOW',0)
+
+APP_PROGRESS='''
+from pathlib import Path
+import os
+for process in Path('/proc').glob('[0-9]*'):
+    try:
+        args=(process/'cmdline').read_bytes().split(b'\\0')
+        if b'/usr/local/libexec/distribution-ram.py' not in args or b'write-app' not in args:
+            continue
+        for fd in (process/'fd').iterdir():
+            if os.readlink(fd) == '/dev/mmcblk0p26':
+                info=dict(line.split(':',1) for line in (process/'fdinfo'/fd.name).read_text().splitlines())
+                print('readback' if int(info['flags'],8)&3 == 0 else 'writing',int(info['pos']))
+                break
+    except OSError:
+        pass
+'''
+
+CUDA_PERMISSIONS='''
+import json, os, sys
+from pathlib import Path
+sys.path.insert(0,'/usr/local/libexec')
+import importlib.util
+spec=importlib.util.spec_from_file_location('installer','/usr/local/libexec/distribution-ram.py')
+installer=importlib.util.module_from_spec(spec)
+spec.loader.exec_module(installer)
+if json.loads(installer.STATE.read_text())['phase'] != 'complete':
+    raise RuntimeError('System installation is incomplete')
+mount=Path('/mnt/mocha-install-app')
+relative=Path('opt/mocha-cuda-runtime/bin/runtime-smoke')
+installer.run('mount','-o','ro,noload',installer.APP,str(mount))
+try:
+    target=mount/relative
+    patch=target.is_file() and not target.is_symlink() and target.stat().st_mode & 0o777 != 0o755
+finally:
+    installer.run('umount',str(mount))
+if patch:
+    try:
+        installer.writable()
+        installer.run('mount','-t','ext4',installer.APP,str(mount))
+        try:
+            target.chmod(0o755)
+            os.sync()
+        finally:
+            installer.run('umount',str(mount))
+    finally:
+        installer.readonly()
+    print('CUDA_SELFTEST_PERMISSIONS_FIXED')
+'''
 
 
 def restrict(path,mode):
@@ -79,7 +130,8 @@ def verify_bundle(root,allow_candidate=False):
 
 
 def output(args,timeout=30):
-    process=subprocess.run(args,capture_output=True,encoding='utf-8',errors='replace',timeout=timeout)
+    process=subprocess.run(args,capture_output=True,encoding='utf-8',errors='replace',timeout=timeout,
+                           creationflags=NO_WINDOW)
     if process.returncode:
         message=(process.stdout+process.stderr)[-1200:]
         message=re.sub(r'(otf_key=)\S+',r'\1[redacted]',message)
@@ -213,6 +265,8 @@ class Transport:
                         if 'U-Boot' in self.fb('getvar','version-bootloader'):break
                     except RuntimeError:pass
                 time.sleep(1)
+                if _ == 4:
+                    print('Waiting for RAM Fastboot. If Windows bound Android ADB Interface, select Android Bootloader Interface in Device Manager.',flush=True)
             else:raise RuntimeError('RAM U-Boot did not enumerate')
         if 'mocha' not in self.fb('getvar','product').lower():raise RuntimeError('RAM product mismatch')
         # The loader must stay in the read-only diagnostics profile, not autoboot.
@@ -257,13 +311,22 @@ class Transport:
         return 'python3 /usr/local/libexec/distribution-ram.py '+' '.join(words)
 
     def stream(self,command,source):
-        process=subprocess.Popen(self.ssh+[command],stdin=subprocess.PIPE)
+        process=subprocess.Popen(self.ssh+[command],stdin=subprocess.PIPE,stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT,creationflags=NO_WINDOW)
+        def report_output():
+            for line in process.stdout:
+                print(line.decode('utf-8',errors='replace').rstrip(),flush=True)
+        reporter=threading.Thread(target=report_output)
+        reporter.start()
         try:
             shutil.copyfileobj(source,process.stdin,length=1024*1024)
             process.stdin.close()
             if process.wait()!=0:raise RuntimeError('Restore failed; keep RAM running and inspect the reported phase')
         except BaseException:
             process.kill();process.wait();raise
+        finally:
+            reporter.join()
+            process.stdout.close()
 
     def backup(self,folder,plan):
         folder.mkdir(parents=True,exist_ok=True)
@@ -276,7 +339,8 @@ class Transport:
                ('LNX-before.img','cat /dev/mmcblk0p22')]
         for name,command in reads:
             with (folder/name).open('xb') as target:
-                process=subprocess.run(self.ssh+[command],stdout=target,stderr=subprocess.PIPE,timeout=90)
+                process=subprocess.run(self.ssh+[command],stdout=target,stderr=subprocess.PIPE,timeout=90,
+                                       creationflags=NO_WINDOW)
             if process.returncode:raise RuntimeError('PC backup transfer failed')
             actual=digest(folder/name)
             expected=self.remote(command+' 2>/dev/null | sha256sum').split()[0]
@@ -288,7 +352,8 @@ class Transport:
         target=folder/'wifi-board-data.txt'
         with target.open('xb') as stream:
             restrict(target,0o600)
-            process=subprocess.run(self.ssh+['cat '+remote],stdout=stream,stderr=subprocess.PIPE,timeout=90)
+            process=subprocess.run(self.ssh+['cat '+remote],stdout=stream,stderr=subprocess.PIPE,timeout=90,
+                                   creationflags=NO_WINDOW)
         if process.returncode or not 0<target.stat().st_size<=128*1024:
             raise RuntimeError('Wi-Fi board-data backup failed before formatting')
         actual=digest(target)
@@ -315,7 +380,7 @@ class Transport:
         print('The tablet remains in RAM maintenance. Session files:',self.recovery,flush=True)
 
 
-def main():
+def main(argv=None):
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('bundle',type=Path)
     mode=p.add_mutually_exclusive_group()
@@ -330,11 +395,12 @@ def main():
     p.add_argument('--fastboot',default='fastboot');p.add_argument('--ssh',default='ssh')
     p.add_argument('--ssh-keygen',default='ssh-keygen')
     p.add_argument('--backup',type=Path,default=Path('mocha-backups')/time.strftime('%Y%m%d-%H%M%S'))
-    a=p.parse_args()
+    a=p.parse_args(argv)
     if a.resume_loader and not a.probe:p.error('--resume-loader requires --probe')
     if a.probe_wifi and not a.probe:p.error('--probe-wifi requires --probe')
     if a.install and a.erase!='APP_UDA':p.error('--install requires --erase APP_UDA; APP/UDA/cache data will be lost')
     if a.erase and not a.install:p.error('--erase is only valid with --install')
+    print('MOCHA_STAGE verify',flush=True)
     root=a.bundle.resolve();manifest=verify_bundle(root,a.allow_candidate)
     if a.probe_wifi and manifest.get('wifi_board_data')!='target-capture-v1':
         p.error('--probe-wifi requires a bundle with target-capture-v1 support')
@@ -352,28 +418,53 @@ def main():
         transport=None
         try:
             transport=Transport(a,Path(temporary),recovery)
+            print('MOCHA_STAGE ram',flush=True)
             transport.boot(root)
             if a.probe:
                 if a.probe_wifi:transport.probe(folder,capture_wifi=True)
                 else:transport.probe(folder)
                 return
+            print('MOCHA_STAGE backup',flush=True)
             plan=json.loads(transport.remote(transport.endpoint('plan')))
             transport.backup(folder,plan)
             print('GPT/LNX backups verified at',folder,flush=True)
             if manifest.get('wifi_board_data')=='target-capture-v1':
                 print(transport.remote(transport.endpoint('capture-wifi'),timeout=90),flush=True)
                 transport.backup_wifi(folder)
+            print('MOCHA_STAGE prepare',flush=True)
             print(transport.remote(transport.endpoint('prepare','--cid',plan['cid'],
                 '--gpt-sha256',plan['gpt_sha256'],'--erase','ERASE_APP_UDA'),timeout=180))
-            with lzma.open(root/'APP.img.xz','rb') as source:
-                transport.stream(transport.endpoint('write-app','--sha256',manifest['app_raw_sha256']),source)
+            print('MOCHA_STAGE app',flush=True)
+            stop=threading.Event()
+            def report_app_progress():
+                while not stop.wait(3):
+                    try:
+                        sample=transport.remote('python3 -c '+shlex.quote(APP_PROGRESS),timeout=7).strip()
+                        if re.fullmatch(r'(writing|readback) \d+',sample):
+                            print('MOCHA_PROGRESS '+sample,flush=True)
+                    except (RuntimeError,subprocess.TimeoutExpired):
+                        pass
+            monitor=threading.Thread(target=report_app_progress) if argv is not None else None
+            if monitor:monitor.start()
+            try:
+                with lzma.open(root/'APP.img.xz','rb') as source:
+                    transport.stream(transport.endpoint('write-app','--sha256',manifest['app_raw_sha256']),source)
+            finally:
+                stop.set()
+                if monitor:monitor.join()
+            print('MOCHA_STAGE data',flush=True)
             data=manifest['files']['DATA.tar.xz']
             with (root/'DATA.tar.xz').open('rb') as source:
                 transport.stream(transport.endpoint('restore-data','--bytes',str(data['bytes']),
                     '--expanded-bytes',str(manifest['data_expanded_bytes']),'--sha256',data['sha256']),source)
+            print('MOCHA_STAGE lnx',flush=True)
             lnx=manifest['files']['LNX.img']
             with (root/'LNX.img').open('rb') as source:
                 transport.stream(transport.endpoint('finalize','--bytes',str(lnx['bytes']),'--sha256',lnx['sha256']),source)
+            print('MOCHA_STAGE cuda',flush=True)
+            if manifest.get('wifi_board_data')=='target-capture-v1':
+                print(transport.remote('python3 -c '+shlex.quote(CUDA_PERMISSIONS),timeout=90),flush=True)
+            print('MOCHA_STAGE reboot',flush=True)
             # Losing SSH here is expected only after all readbacks have succeeded.
             transport.remote('sync; (sleep 2; /bin/busybox reboot -f) >/dev/null 2>&1 </dev/null &')
         except BaseException:
@@ -381,7 +472,7 @@ def main():
             else:report_setup_failure(recovery,folder)
             raise
         transport.success()
-        print('Installed. The tablet will reboot to the desktop (user: mocha, password: mocha).')
+        print('Installed and verified. Reboot requested (user: mocha, password: mocha).')
 
 
 if __name__=='__main__':main()

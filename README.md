@@ -14,6 +14,16 @@ r6 的修复已在现有实机系统中应用，充电动画及长按进入桌�
 
 ## 使用已有兼容安装包
 
+### Windows 图形安装器
+
+将安装器和镜像 ZIP 分别完整解压，打开 `Mocha-Flasher.exe`，选择包含 `bundle.json` 的 `image` 目录。安装器的 `_internal` 目录需与 EXE 保持在一起。先用「检查连接和镜像」核对设备和文件，再点「开始刷写」。图形安装器支持 r6 候选镜像，包含 Fastboot 和 Python，电脑仍需 Windows OpenSSH 客户端和适用的 USB 驱动。
+
+刷写期间界面会显示当前步骤、系统写入及回读校验的进度。「打开日志目录」可找到日志和设备备份。r6 的 CUDA 自检执行权限会在首次开机前由安装器修复。如果完成校验并发出重启指令后持续黑屏，可长按电源关机后再正常开机。
+
+维护者可在 Windows 安装 PyInstaller 后运行 `python tools/build-flasher-exe.py --platform-tools C:\platform-tools --output dist`，从 Android platform-tools 目录打包 EXE。
+
+### 命令行和原双击入口
+
 Windows 需要 OpenSSH（`ssh`、`ssh-keygen`）、Fastboot 与 RNDIS 驱动，以及 Python 3.11+ 和 Android platform-tools 的 `fastboot`。如果安装包自带便携运行时和 platform-tools，入口会优先使用它们。
 
 1. 备份全部个人数据并给平板充电。
