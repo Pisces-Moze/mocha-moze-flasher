@@ -1,39 +1,32 @@
-# Mocha Moze Flasher
+# Mocha Debian r8 整合包
 
-适用于已验证的 16 GB Xiaomi Mocha 平板的 Debian 安装工具。它通过原厂 Fastboot 临时启动 RAM 维护系统，将 APP 设置为 3 GiB，写入系统、恢复桌面数据并在回读校验后关机。
+适用于 **16 GB 小米平板 1（Mocha）**。整合包包含 Debian 镜像和 Windows x64 图形安装器。下载页面也提供 SHA-256 校验文件。
 
-> **运行安装入口会自动清除 APP、UDA 和 cache。请先独立备份全部个人数据。** 工具备份的 GPT 和 LNX 不能恢复这些数据。仅支持工具明确识别的 16 GB Mocha 和已有的受支持分区布局。
+**[下载 r8 整合包及校验文件](https://github.com/Pisces-Moze/mocha-moze-flasher/releases/tag/source-candidate-20261121-r8)**（约 700 MiB）
 
-## 当前状态
+## 安装
 
-已在一台 APP 为 3 GiB 的设备上完成候选镜像完整刷写，并确认桌面、触控、Wi-Fi、蓝牙、扬声器和锁屏正常。原始 2 GiB 布局自动扩容及双击入口完整刷写尚未实机验收。本项目是实验版，无法保证其他设备适用。
+> 刷写会清空 APP、UDA 和 cache。先另行备份个人文件。安装器保存的 GPT 和 LNX 备份不能恢复这些文件。
 
-最新整理版本为 **source-candidate-20261118-r6**，完整包约 701 MiB，APP 为 3 GiB，首次启动直接进入桌面，默认账户和密码均为 `mocha`。修复内容、使用命令和验收范围见 [r6 发行说明](docs/RELEASE-r6.md)。候选包上传和发布状态以 [GitHub Releases](https://github.com/Pisces-Moze/mocha-moze-flasher/releases) 为准。
+1. 完整解压 `Mocha-Debian-r8-Windows-x64.zip`，保持 `Mocha-Flasher.exe`、`_internal` 和 `image` 在同一目录。电脑需有 Windows OpenSSH 客户端和适用的 USB 驱动。
+2. 平板关机后按电源＋音量减进入原厂 Fastboot，用数据线直连电脑。
+3. 打开 `Mocha-Flasher.exe`，选择包内的 `image`。先点「检查连接和镜像」，核对后点「开始刷写」。
+4. 写入和回读校验期间保持 USB 连接。安装器发出关机指令后，等平板关机，拔掉 USB，再按电源键开机。
+5. 首次启动直接进入桌面。默认账户和密码均为 `mocha`，登录后用 `passwd` 修改密码。
 
-r6 的修复已在现有实机系统中应用，充电动画及长按进入桌面已由用户确认；**r6 整包重新刷入验收尚未完成**，因此保留候选标记。双击入口会拒绝候选包，维护者需显式传入 `--allow-candidate`。不要把私人备份、设备板级数据或密钥上传至此仓库。
+## r8 功能与验收
 
-## 使用已有兼容安装包
+- APP 为 3 GiB，约 11 GiB 的 UDA 数据区承载 `/home`。
+- 前后摄提供标准 V4L2 接口，支持 320×180、640×360、1280×720 和 5、10、15、30 fps 档位，一次可用一路。相机应用由用户自行安装。
+- 实机 RAM 环境连续取帧测得前摄 640×360 约 15 fps、320×180 约 30 fps，后摄 1280×720 约 10 fps。
+- 内置扬声器默认数字增益 0 dB，保留双功放保护。
+- 镜像与 ZIP 已通过离线校验。整包刷入后的首次开机和扬声器响度仍待实机验收，因此 r8 标记为候选版。
 
-### Windows 图形安装器
+## 版本控制
 
-Windows x64 合包为 `Mocha-Debian-r6-Windows-x64.zip`。完整解压后双击 `Mocha-Flasher.exe`，程序会自动选中同目录的 `image`。先用「检查连接和镜像」核对设备和文件，再点「开始刷写」。包内含 Fastboot 和 Python，电脑仍需 Windows OpenSSH 客户端和适用的 USB 驱动。[GitHub Releases](https://github.com/Pisces-Moze/mocha-moze-flasher/releases/tag/source-candidate-20261118-r6)
-
-刷写期间界面会显示当前步骤、系统写入及回读校验的进度。「打开日志目录」可找到日志和设备备份。r6 的 CUDA 自检执行权限会在首次开机前由安装器修复。看到「已发出关机指令」后，等平板关机，拔掉 USB，再按电源键开机。r6 ZIP 随附的旧脚本沿用原来的重启流程。
-
-维护者可在 Windows 安装 PyInstaller 后运行 `python tools/build-flasher-exe.py --platform-tools C:\platform-tools --output dist`，从 Android platform-tools 目录打包 EXE。
-
-### 命令行和原双击入口
-
-Windows 需要 OpenSSH（`ssh`、`ssh-keygen`）、Fastboot 与 RNDIS 驱动，以及 Python 3.11+ 和 Android platform-tools 的 `fastboot`。如果安装包自带便携运行时和 platform-tools，入口会优先使用它们。
-
-1. 备份全部个人数据并给平板充电。
-2. 关机后按电源＋音量减进入原厂 Fastboot，用数据线连接电脑。
-3. 将已完成实机验收的兼容镜像放在包的 `image/` 目录，双击 `Install-Mocha.cmd`。**程序通过检查后立即开始执行擦除安装**，无需额外确认；未经验证的候选包会被双击入口拒绝。
-4. 按窗口提示保持连接。失败时不要重复刷写；保留 USB 和 RAM 会话，查看本机 `mocha-backups` 下的恢复说明。
-
-使用新版 RAM 安装环境构建的安装包会在格式化前只读提取当前设备的 Wi-Fi 板级数据，在本机备份并校验，再于写入系统后恢复。若旧 APP 分区不可读取、没有受支持的板级数据或存在冲突，安装会在格式化前停止。旧安装包沿用原有处理方式。备份目录中的板级数据属于该设备，请自行保管。
-
-用户自行构建的包必须包含 `bundle.json` 及所列七个文件；程序在设备写入前核验文件哈希、型号和布局。成功后首次启动直接进入桌面；默认账户和密码都是 `mocha`，请尽快在终端运行 `passwd` 修改。
+- `main` 展示当前推荐下载的 r8 整合包。r8 固定发布标签为 `source-candidate-20261121-r8`，发布包和校验文件成对使用。
+- 历史版本在独立维护分支保留，可从 [r6 维护分支](https://github.com/Pisces-Moze/mocha-moze-flasher/tree/release/r6) 查阅对应说明。
+- 下方是源码构建与验证入口。源码构建使用 `sources.lock.json` 的固定提交，当前流程尚未确认可从零复现 r8 发布包。
 
 ## 自动源码准备（开发阶段）
 
