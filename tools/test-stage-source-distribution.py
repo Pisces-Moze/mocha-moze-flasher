@@ -24,13 +24,15 @@ class StageTests(unittest.TestCase):
     def test_copy_then_prepare_then_audit_remains_unverified(self):
         with mock.patch.object(module.shutil,'which',return_value='/usr/bin/rsync'), \
              mock.patch.object(module.shutil,'disk_usage',return_value=mock.Mock(free=8*1024**3)), \
-             mock.patch.object(module.subprocess,'run') as run:
+             mock.patch.object(module.subprocess,'run') as run, \
+             mock.patch.object(module,'stage_home') as home:
             result=module.stage(self.root,self.data,self.out)
         commands=[call.args[0] for call in run.call_args_list]
         self.assertEqual(len(commands),4)
         self.assertEqual(commands[0][0],'rsync');self.assertEqual(commands[1][0],'rsync')
         self.assertTrue(commands[2][1].endswith('prepare-source-distribution.py'))
         self.assertTrue(commands[3][1].endswith('audit-source-desktop.py'))
+        home.assert_called_once_with(self.out.resolve()/'APP', self.out.resolve()/'DATA')
         self.assertFalse(result['ready_to_flash'])
         self.assertTrue((self.out/'source-stage.json').is_file())
 
@@ -44,7 +46,8 @@ class StageTests(unittest.TestCase):
         kernel=self.parent/'kernel';drivers=self.parent/'drivers';kernel.mkdir();drivers.mkdir()
         with mock.patch.object(module.shutil,'which',return_value='/usr/bin/rsync'), \
              mock.patch.object(module.shutil,'disk_usage',return_value=mock.Mock(free=8*1024**3)), \
-             mock.patch.object(module.subprocess,'run') as run:
+             mock.patch.object(module.subprocess,'run') as run, \
+             mock.patch.object(module,'stage_home'):
             result=module.stage(self.root,self.data,self.out,kernel=kernel,drivers=drivers)
         self.assertTrue(result['kernel_driver_match'])
         self.assertTrue(run.call_args_list[-1].args[0][1].endswith('audit-source-components.py'))

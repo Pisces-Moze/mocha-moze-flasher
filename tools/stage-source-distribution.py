@@ -13,6 +13,8 @@ import shutil
 import subprocess
 import sys
 
+from stage_home import stage_home
+
 
 def stage(root, data, output, kernel=None, drivers=None, speaker_source=None):
     root, data, output = Path(root), Path(data), Path(output)
@@ -52,6 +54,7 @@ def stage(root, data, output, kernel=None, drivers=None, speaker_source=None):
     (app/'.mocha-source-image-copy').write_text(json.dumps({'schema':1,'purpose':'source-image-staging'}))
     subprocess.run([sys.executable,str(here/'prepare-source-distribution.py'),
                     '--root',str(app),'--data',str(uda)],check=True)
+    stage_home(app, uda)
     subprocess.run([sys.executable,str(here/'audit-source-desktop.py'),
                     '--root',str(app),'--data',str(uda)],check=True)
     if kernel is not None:

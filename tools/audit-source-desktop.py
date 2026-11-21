@@ -55,8 +55,14 @@ def inspect(root, data):
     if root.resolve() == data.resolve() or root.resolve() in data.resolve().parents or data.resolve() in root.resolve().parents:
         raise ValueError('APP and UDA staging directories must be separate')
     issues = []
+    mounts = {}
+    for line in (root / 'etc/fstab').read_text().splitlines() if (root / 'etc/fstab').is_file() else ():
+        fields = line.split()
+        if len(fields) >= 2 and not line.lstrip().startswith('#'):
+            mounts[fields[1]] = fields[0]
+    data_home = mounts.get('/home') == '/srv/mocha-data/home'
     for label, relative in REQUIRED_ROOT.items():
-        path = root / relative
+        path = (data if data_home and relative.startswith('home/') else root) / relative
         if not path.is_file() or path.stat().st_size == 0:
             issues.append('missing or empty ' + label + ': ' + relative)
     passwd = root / 'etc/passwd'
@@ -70,13 +76,8 @@ def inspect(root, data):
     enabled = root / 'etc/systemd/system/getty.target.wants/getty@tty1.service'
     if not enabled.is_symlink():
         issues.append('tty1 getty is not enabled')
-    fstab = root / 'etc/fstab'
-    mounts = {}
-    if fstab.is_file():
-        for line in fstab.read_text().splitlines():
-            fields = line.split()
-            if len(fields) >= 2 and not line.lstrip().startswith('#'):
-                mounts[fields[1]] = fields[0]
+    if '/home' in mounts and (not data_home or not (root / 'home').is_dir()):
+        issues.append('invalid data-backed home mount')
     if mounts.get('/') != 'LABEL=mocha-debian' or mounts.get('/srv/mocha-data') != 'LABEL=mocha-data':
         issues.append('root or data filesystem does not mount by the expected label')
     wallpapers = [p for p in data.rglob(WALLPAPER) if p.is_file() and not p.is_symlink()]
