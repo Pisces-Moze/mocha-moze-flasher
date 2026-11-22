@@ -2,9 +2,9 @@
 
 下表是研究原厂固件时的对照和当时的移植计划。r8 已完成双扬声器、双摄 V4L2 预览和 VDE H.264 解码，当前范围见 [实机状态](https://github.com/Pisces-Moze/mocha-moze-debian/blob/main/docs/STATUS.md)。
 
-参考对象是 MIUI `V9.2.4.0.KXFCNEK` Fastboot 包。本轮离线读取了 `system.img`、`boot.img` 的 ramdisk、内核可打印字符串和设备树。包内单独提供的 DTB 与 `boot.img` 内嵌 DTB 的 SHA-256 一致。固件广告、内核编入的候选驱动和本机实际连线是三类不同的证据。下面列出的改动方向还需要实机验证。
+参考对象是 MIUI `V9.2.4.0.KXFCNEK` Fastboot 包。本轮离线读取了 `system.img`、`boot.img` 的 ramdisk、内核可打印字符串和设备树。包内单独提供的 DTB 与 `boot.img` 内嵌 DTB 的 SHA-256 一致。固件广告、内核编入的候选驱动和本机实际连线是三类不同的证据。当前的验证结果以上方状态链接为准。
 
-| 项目 | 已找到的证据 | Debian 改进路线与验收 |
+| 项目 | 当时找到的证据 | 当时的 Debian 移植计划 |
 | --- | --- | --- |
 | 视频硬解 | `media_codecs.xml` 为 AVC、HEVC、VP8 等声明 NVIDIA OMX 组件。DTB 还包含 NVAVP、VIC 和 MSENC 节点。现有 Debian Tegra VDE 提供无状态 H.264 接口。Android 声明只能用于决定优先比较哪些样片。 | 优先稳定 H.264。用相同的 720p30、1080p30 样片比较 FFmpeg/MPV 软件解码、VDE 解码及 DMA-BUF 呈现，记录逐帧校验、掉帧和 CPU。Firefox 单独验证 RDD 确实提交 V4L2 Request 后再开启默认硬解。对 HEVC 和 VP8 先查明原厂使用的引擎及后端，再确定能否移植。[Linux V4L2 无状态解码接口](https://docs.kernel.org/userspace-api/media/v4l/dev-stateless-decoder.html) |
 | 双扬声器音量 | 原厂 `nvaudio_conf.xml` 区分正常播放、通话和 raw 标记，配有左右独立 TFA9890 音箱模型、音乐及语音 preset、EQ。Debian 加载受保护的音乐 preset，但启动脚本明确将两侧 `Spk Digital Volume` 设为 `219`，按现有驱动刻度为 −18 dB；WirePlumber 使用软件音量。 | 先用同一音源和同一距离，读取两套系统的混音器音量，对比 PipeWire 100%、ALSA 数字信号及左右声压。保留 TFA9890 扬声器模型、保护 DSP 和工厂校准。只有确认衰减来自 `219` 后，才分步提高增益并复测左右响度、削波和功放状态。原厂 raw 档的升压参数不能用来校准正常播放。 |
