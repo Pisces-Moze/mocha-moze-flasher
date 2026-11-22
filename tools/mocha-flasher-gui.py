@@ -70,7 +70,7 @@ class App:
         frame = ttk.Frame(root, padding=16)
         frame.pack(fill='both', expand=True)
         ttk.Label(frame, text='Mocha 刷机工具', font=('Microsoft YaHei UI', 16, 'bold')).pack(anchor='w')
-        ttk.Label(frame, text='Xiaomi Mocha 16 GB · Debian · Windows').pack(anchor='w', pady=(2, 12))
+        ttk.Label(frame, text='Xiaomi Mocha · Debian · Windows').pack(anchor='w', pady=(2, 12))
 
         file_row = ttk.Frame(frame)
         file_row.pack(fill='x')
@@ -155,14 +155,18 @@ class App:
                         raise RuntimeError('未找到 Windows OpenSSH 客户端工具 ' + name)
                 if not fastboot:
                     raise RuntimeError('未找到 fastboot')
-                rows = installer.output([fastboot, 'devices'], timeout=8).strip().splitlines()
-                if len(rows) != 1:
-                    raise RuntimeError('请只连接一台已进入原厂 Fastboot 的平板，并确认 Windows 驱动已安装。')
-                serial = rows[0].split()[0]
-                product = installer.output([fastboot, '-s', serial, 'getvar', 'product'], timeout=10)
-                if 'mocha' not in product.lower():
-                    raise RuntimeError('当前设备型号无法确认为 Mocha。')
-                print('已通过 Fastboot 识别 Mocha。')
+                if not write:
+                    from windows_usb import repair_usb
+                    rows = installer.output([fastboot, 'devices'], timeout=8).strip().splitlines()
+                    if not rows:
+                        repair_usb('fastboot')
+                        rows = installer.output([fastboot, 'devices'], timeout=8).strip().splitlines()
+                    if len(rows) != 1:
+                        raise RuntimeError('请只连接一台处于原厂或 RAM Fastboot 的小米平板 1。')
+                    product = installer.output([fastboot, '-s', rows[0].split()[0], 'getvar', 'product'], timeout=10)
+                    if 'mocha' not in product.lower():
+                        raise RuntimeError('当前设备型号无法确认为 Mocha。')
+                    print('已通过 Fastboot 识别 Mocha。')
                 args = [str(image), '--allow-candidate', '--fastboot', fastboot]
                 if write:
                     print('备份目录：'+str(backup))

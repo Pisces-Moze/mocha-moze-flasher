@@ -3,10 +3,9 @@
 """Destructive installer endpoint, ONLY in the authenticated offline RAM image.
 
 Stock boot/calibration partitions 1-25 are retained except LNX (22), written
-last. Supports only the validated 16 GB 016GE2 geometry, never guessed sizes.
+last. Derive the UDA extent from the verified Mocha GPT.
 """
 import argparse
-import fcntl
 import hashlib
 import importlib.util
 import json
@@ -58,7 +57,30 @@ def guard():
         raise RuntimeError('Distribution RAM environment required')
     if 'rdinit=/init' not in Path('/proc/cmdline').read_text().split():
         raise RuntimeError('RAM boot argument missing')
-    return layout.offline()
+    model=Path('/sys/firmware/devicetree/base/compatible').read_bytes().split(b'\0')
+    if b'nvidia,mocha' not in model and b'xiaomi,mocha' not in model:
+        raise RuntimeError('Mocha device tree required')
+    return layout.offline(expected_size=None)
+
+
+def target_layout(parts, last_usable):
+    if [part['number'] for part in parts]!=list(range(1,30)):
+        raise RuntimeError('Unsupported partition numbers; no writes made')
+    ordered=sorted(parts,key=lambda part:part['start'])
+    if any(left['start']+left['sectors']>right['start']
+           for left,right in zip(ordered,ordered[1:])):
+        raise RuntimeError('Overlapping GPT partitions; no writes made')
+    bounds=[(p['number'],p['name'],p['start'],p['sectors']) for p in parts[-4:]]
+    for geometry in (layout.OLD, layout.NEW):
+        number,name,start,_=geometry[-1]
+        if bounds==geometry[:-1]+[(number,name,start,last_usable-start+1)]:
+            break
+    else:
+        raise RuntimeError('Unsupported GPT layout; no writes made')
+    number,name,start,_=layout.NEW[-1]
+    if last_usable-start+1<1024**3//512:
+        raise RuntimeError('Insufficient space for a 3 GiB APP and UDA')
+    return layout.NEW[:-1]+[(number,name,start,last_usable-start+1)]
 
 
 def plan():
@@ -66,19 +88,21 @@ def plan():
     if 'GNU tar' not in run('tar','--version').stdout:
         raise RuntimeError('GNU tar with xattrs/ACL support required before any writes')
     run('xz','--version')
+    disk_bytes=int(run('blockdev','--getsize64',DISK).stdout)
+    if run('blockdev','--getss',DISK).stdout.strip()!='512':
+        raise RuntimeError('Expected 512-byte eMMC sectors')
     with open(DISK,'rb',buffering=0) as disk:
-        headers,table=layout.read_gpt(disk)
-    parts=layout.partition_list(table,headers[0][1][12])
-    bounds=[(p['number'],p['name'],p['start'],p['sectors']) for p in parts[-4:]]
-    if bounds not in (layout.OLD,layout.NEW):
-        raise RuntimeError('Unsupported GPT layout; no writes made')
+        headers,table=layout.read_gpt(disk,disk_bytes)
+    last_usable=headers[0][1][8]
+    parts=layout.partition_list(table,headers[0][1][12],last_usable)
+    target=target_layout(parts,last_usable)
     lnx=next(p for p in parts if p['number']==22)
     if (lnx['name'],lnx['start'],lnx['sectors'])!=('LNX',393216,40960):
         raise RuntimeError('Unexpected LNX geometry')
     if any(p['start']+p['sectors']>524288 for p in parts if p['number']<=25):
         raise RuntimeError('Protected partitions overlap the target system')
-    return {'cid':cid,'disk_bytes':layout.SIZE,'gpt_sha256':layout.digest(table),
-            'partitions':parts,'target':layout.NEW,'app_bytes':3*1024**3}
+    return {'cid':cid,'disk_bytes':disk_bytes,'gpt_sha256':layout.digest(table),
+            'partitions':parts,'target':target,'app_bytes':3*1024**3}
 
 
 def writable():
@@ -140,8 +164,10 @@ def prepare(args):
     writable()
     try:
         with open(DISK,'r+b',buffering=0) as disk:
-            headers,table=layout.read_gpt(disk)
-            revised=layout.replace_bounds(table,headers[0][1][12],layout.NEW)
+            headers,table=layout.read_gpt(disk,current['disk_bytes'])
+            if layout.digest(table)!=current['gpt_sha256']:
+                raise RuntimeError('GPT changed after planning')
+            revised=layout.replace_bounds(table,headers[0][1][12],current['target'])
             changed=revised!=table
             if changed:
                 for index in (1,0):
@@ -149,9 +175,10 @@ def prepare(args):
                     layout.write_at(disk,fields[10]*512,revised)
                     layout.write_at(disk,fields[5]*512,layout.replace_header_crc(sector,revised))
                     disk.flush();os.fsync(disk.fileno())
-                if layout.read_gpt(disk)[1]!=revised:raise RuntimeError('GPT readback mismatch')
+                if layout.read_gpt(disk,current['disk_bytes'])[1]!=revised:raise RuntimeError('GPT readback mismatch')
+                import fcntl
                 fcntl.ioctl(disk.fileno(),0x125f)
-        for n,name,start,count in layout.NEW:
+        for n,name,start,count in current['target']:
             node=Path('/sys/class/block')/f'mmcblk0p{n}'
             if (int((node/'start').read_text()),int((node/'size').read_text()))!=(start,count):
                 raise RuntimeError('Kernel partition reread mismatch')

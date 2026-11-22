@@ -96,8 +96,9 @@ class ArchiveTests(unittest.TestCase):
     @unittest.skipUnless(sys.platform == 'linux','RAM installer requires Linux')
     def test_prepare_retains_original_gpt_for_wifi_restoration(self):
         ram=load('distribution_ram_state','distribution-ram.py')
-        current={'cid':'device-a','gpt_sha256':'original-gpt'}
-        args=type('Args',(),{'cid':'device-a','gpt_sha256':'original-gpt','erase':'ERASE_APP_UDA'})()
+        current={'cid':'device-a','gpt_sha256':ram.layout.digest(b'unchanged'),
+                 'disk_bytes':ram.layout.SIZE,'target':ram.layout.NEW}
+        args=type('Args',(),{'cid':'device-a','gpt_sha256':current['gpt_sha256'],'erase':'ERASE_APP_UDA'})()
         with tempfile.TemporaryDirectory() as directory:
             root=Path(directory); disk=root/'disk'; disk.touch(); sysfs=root/'sysfs'; sysfs.mkdir()
             for number,_,start,sectors in ram.layout.NEW:
@@ -117,7 +118,32 @@ class ArchiveTests(unittest.TestCase):
                 ram.prepare(args)
                 state=json.loads(ram.STATE.read_text())
                 self.assertEqual(state['phase'],'prepared')
-                self.assertEqual(state['source_gpt_sha256'],'original-gpt')
+                self.assertEqual(state['source_gpt_sha256'],current['gpt_sha256'])
+
+    def test_ram_wait_tolerates_a_stalled_fastboot_query(self):
+        flash=load('flash_distribution_wait','flash-distribution.py')
+        transport=flash.Transport.__new__(flash.Transport)
+        transport.a=mock.Mock()
+        with mock.patch.object(transport,'devices',side_effect=[['factory'],[],['ram']]), \
+             mock.patch.object(transport,'fb',side_effect=[
+                 subprocess.TimeoutExpired('fastboot',4),'U-Boot']), \
+             mock.patch.object(flash.time,'sleep'):
+            transport.wait_ram_fastboot()
+        self.assertEqual(transport.serial,'ram')
+
+    def test_larger_mocha_keeps_the_target_disk_end(self):
+        ram=load('distribution_ram_geometry','distribution-ram.py')
+        for last in (30773247,61067263,122146815):
+            prefix=[(number,'protected',4096+number,1) for number in range(1,26)]
+            old=ram.layout.OLD[:-1]+[(29,'UDA',3932160,last-3932160+1)]
+            parts=[dict(number=n,name=name,start=start,sectors=count)
+                   for n,name,start,count in prefix+old]
+            target=ram.target_layout(parts,last)
+            self.assertEqual(target[:3],ram.layout.NEW[:3])
+            self.assertEqual(target[-1][2]+target[-1][3]-1,last)
+            parts[-1]['start']+=1
+            with self.assertRaisesRegex(RuntimeError,'Unsupported GPT layout'):
+                ram.target_layout(parts,last)
 
     def test_missing_build_tools_fail_before_subprocess(self):
         builder=load('build_distribution_preflight','build-distribution.py')

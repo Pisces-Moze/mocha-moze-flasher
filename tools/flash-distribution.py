@@ -105,7 +105,7 @@ def digest(path):
 
 def verify_bundle(root,allow_candidate=False):
     manifest=json.loads((root/'bundle.json').read_text(encoding='utf-8'))
-    if manifest.get('schema')!=1 or manifest.get('device')!='xiaomi-mocha-16gb':
+    if manifest.get('schema')!=1 or manifest.get('device') not in ('xiaomi-mocha-16gb','xiaomi-mocha'):
         raise ValueError('Unsupported bundle schema/device')
     if manifest.get('app_bytes')!=3*1024**3:raise ValueError('Expected exactly 3 GiB APP')
     if manifest.get('wifi_board_data') not in (None,'target-capture-v1'):
@@ -228,7 +228,7 @@ class Transport:
         if not saved:print('Warning: could not update the session state file; inspect the recovery directory.',flush=True)
 
     def devices(self):
-        rows=output([self.a.fastboot,'devices']).strip().splitlines()
+        rows=output([self.a.fastboot,'devices'],timeout=5).strip().splitlines()
         return [line.split()[0] for line in rows if line.strip()]
 
     def fb(self,*args,timeout=40):
@@ -246,28 +246,47 @@ class Transport:
             if disconnect or 'Empty console' in str(error):return ''
             raise
 
-    def boot(self,root):
-        devices=self.devices()
-        if len(devices)!=1:raise RuntimeError('Connect exactly one Mocha in Fastboot')
-        self.serial=devices[0]
-        if getattr(self.a,'resume_loader',False):
-            if 'U-Boot' not in self.fb('getvar','version-bootloader'):
-                raise RuntimeError('Expected the already started RAM U-Boot')
-        else:
-            if 'mocha' not in self.fb('getvar','product').lower():raise RuntimeError('Factory product is not mocha')
-            self.fb('boot',str(root/'loader.img'),timeout=60)
-            print('RAM loader sent. Waiting for its Fastboot USB interface.',flush=True)
-            for _ in range(45):
+    def wait_ram_fastboot(self):
+        deadline=time.monotonic()+75
+        reported=False
+        while time.monotonic()<deadline:
+            try:
                 devices=self.devices()
                 if len(devices)==1:
                     self.serial=devices[0]
-                    try:
-                        if 'U-Boot' in self.fb('getvar','version-bootloader'):break
-                    except RuntimeError:pass
-                time.sleep(1)
-                if _ == 4:
-                    print('Waiting for RAM Fastboot. If Windows bound Android ADB Interface, select Android Bootloader Interface in Device Manager.',flush=True)
-            else:raise RuntimeError('RAM U-Boot did not enumerate')
+                    if 'U-Boot' in self.fb('getvar','version-bootloader',timeout=4):
+                        return
+            except (RuntimeError,subprocess.TimeoutExpired):
+                pass
+            if not reported and deadline-time.monotonic()<68:
+                reported=True
+                print('RAM Fastboot has not answered. Checking the Windows USB interface.',flush=True)
+                if os.name=='nt':
+                    from windows_usb import repair_usb
+                    repair_usb('fastboot')
+                    deadline=time.monotonic()+65
+            time.sleep(1)
+        raise RuntimeError('RAM Fastboot did not respond. Keep the tablet in RAM USB diagnostics, fix its Windows USB driver, then start again to resume the RAM loader.')
+
+    def boot(self,root):
+        devices=self.devices()
+        if len(devices)!=1 and os.name=='nt':
+            from windows_usb import repair_usb
+            repair_usb('fastboot')
+            devices=self.devices()
+        if len(devices)!=1:raise RuntimeError('Connect exactly one Mocha in Fastboot')
+        self.serial=devices[0]
+        version=self.fb('getvar','version-bootloader',timeout=8)
+        if 'U-Boot' in version:
+            print('Resuming the existing RAM Fastboot loader.',flush=True)
+        else:
+            if getattr(self.a,'resume_loader',False):
+                raise RuntimeError('Expected the already started RAM U-Boot')
+            if 'mocha' not in self.fb('getvar','product').lower():
+                raise RuntimeError('Factory product is not mocha')
+            self.fb('boot',str(root/'loader.img'),timeout=60)
+            print('RAM loader sent. Waiting for its Fastboot USB interface.',flush=True)
+            self.wait_ram_fastboot()
         if 'mocha' not in self.fb('getvar','product').lower():raise RuntimeError('RAM product mismatch')
         # The loader must stay in the read-only diagnostics profile, not autoboot.
         environment=self.oem('printenv bootcmd')
@@ -295,11 +314,15 @@ class Transport:
                     'regulator_ignore_unused','cpuidle.off=1'):
             self.oem('setenv bootargs ${bootargs} '+arg)
         self.oem(f'bootm 80007fc0 88000000:{personalized.stat().st_size:x} 8c000000',disconnect=True)
-        for _ in range(60):
+        for attempt in range(24):
             try:
-                self.remote('test -f /etc/mocha-distribution-ram')
+                self.remote('test -f /etc/mocha-distribution-ram',timeout=5)
                 self.ram_ready=True;self._write_state('ram-session');return
-            except (RuntimeError,subprocess.TimeoutExpired):time.sleep(2)
+            except (RuntimeError,subprocess.TimeoutExpired):
+                if attempt==3 and os.name=='nt':
+                    from windows_usb import repair_usb
+                    repair_usb('rndis')
+                time.sleep(2)
         raise RuntimeError('RAM USB SSH unavailable; do not format or reboot blindly')
 
     def remote(self,command,timeout=45):return output(self.ssh+[command],timeout)
@@ -337,8 +360,9 @@ class Transport:
         (folder/'plan.json').write_text(json.dumps(plan,indent=2)+'\n')
         # Primary GPT/reserved prefix, tail GPT and original LNX; personal backup
         # files are PC-local. No factory EBT/BCT/boot0/boot1 is ever overwritten.
+        tail_start=plan['disk_bytes']//512-4096
         reads=[('primary-gpt.bin','dd if=/dev/mmcblk0 bs=512 count=4096'),
-               ('secondary-gpt.bin','dd if=/dev/mmcblk0 bs=512 skip=30773248 count=4096'),
+               ('secondary-gpt.bin',f'dd if=/dev/mmcblk0 bs=512 skip={tail_start} count=4096'),
                ('LNX-before.img','cat /dev/mmcblk0p22')]
         for name,command in reads:
             with (folder/name).open('xb') as target:
@@ -407,7 +431,7 @@ def main(argv=None):
     root=a.bundle.resolve();manifest=verify_bundle(root,a.allow_candidate)
     if a.probe_wifi and manifest.get('wifi_board_data')!='target-capture-v1':
         p.error('--probe-wifi requires a bundle with target-capture-v1 support')
-    print('Verified bundle:',manifest['version'],'APP: 3 GiB; UDA: remaining validated 16 GB layout')
+    print('Verified bundle:',manifest['version'],'APP: 3 GiB; UDA: remaining space on a compatible Mocha GPT')
     if not (a.install or a.probe):
         print('PLAN ONLY: no device commands. Install with --install --erase APP_UDA after backing up personal data.');return
     for tool in (a.fastboot,a.ssh,a.ssh_keygen):
@@ -429,6 +453,10 @@ def main(argv=None):
                 return
             print('MOCHA_STAGE backup',flush=True)
             plan=json.loads(transport.remote(transport.endpoint('plan')))
+            target=dict((name,count) for _,name,_,count in plan['target'])
+            required=manifest['files']['DATA.tar.xz']['bytes']+manifest['data_expanded_bytes']+256*1024**2
+            if target['UDA']*512*7//8<required:
+                raise RuntimeError('Target UDA cannot hold this bundle')
             transport.backup(folder,plan)
             print('GPT/LNX backups verified at',folder,flush=True)
             if manifest.get('wifi_board_data')=='target-capture-v1':

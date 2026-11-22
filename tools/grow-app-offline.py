@@ -62,19 +62,20 @@ def move_backwards(stream, source, destination, size, checkpoint, chunk=16*1024*
         checkpoint(remaining,count,expected)
 
 
-def read_gpt(stream):
+def read_gpt(stream, disk_bytes=SIZE):
+    disk_end=disk_bytes//512-1
     headers=[];tables=[]
     assert read_at(stream,510,2)==b'\x55\xaa'
-    for lba in (1,SIZE//512-1):
+    for lba in (1,disk_end):
         sector=read_at(stream,lba*512,512)
         fields=struct.unpack_from('<8s4I4Q16sQ3I',sector)
         assert fields[0]==b'EFI PART' and fields[1]==0x10000 and fields[2]==92 and fields[4]==0
         header=bytearray(sector[:92]);header[16:20]=b'\0'*4
         assert zlib.crc32(header)==fields[3]
-        assert fields[5]==lba and fields[6]==(SIZE//512-1 if lba==1 else 1)
-        assert fields[7]==4096 and fields[8]==30773247
+        assert fields[5]==lba and fields[6]==(disk_end if lba==1 else 1)
+        assert fields[7]==4096 and fields[7]<=fields[8]<disk_end
         assert 0<fields[11]<=4096 and 128<=fields[12]<=1024
-        assert fields[10]*512+fields[11]*fields[12]<=SIZE
+        assert fields[10]*512+fields[11]*fields[12]<=disk_bytes
         table_end=fields[10]+(fields[11]*fields[12]+511)//512
         if lba==1:
             assert fields[10]>=2 and table_end<=fields[7]
@@ -88,13 +89,13 @@ def read_gpt(stream):
     return headers,tables[0]
 
 
-def partition_list(table, width):
+def partition_list(table, width, last_usable=30773247):
     result=[]
     for offset in range(0,len(table),width):
         entry=table[offset:offset+width]
         if entry[:16]==b'\0'*16:continue
         start,end=struct.unpack_from('<QQ',entry,32)
-        assert 4096<=start<=end<=30773247
+        assert 4096<=start<=end<=last_usable
         result.append({'number':offset//width+1,
                        'name':entry[56:128].decode('utf-16-le').rstrip('\0'),
                        'start':start,'sectors':end-start+1})
@@ -118,10 +119,12 @@ def replace_header_crc(sector, table):
     return bytes(result)
 
 
-def offline():
+def offline(expected_size=SIZE):
     base=Path('/sys/class/block')
-    assert os.geteuid()==0 and (base/'mmcblk0/device/name').read_text().strip()=='016GE2'
-    assert int((base/'mmcblk0/size').read_text())*512==SIZE
+    assert os.geteuid()==0
+    if expected_size is not None:
+        assert (base/'mmcblk0/device/name').read_text().strip()=='016GE2'
+        assert int((base/'mmcblk0/size').read_text())*512==expected_size
     nodes=[p for p in base.glob('mmcblk0*') if p.is_dir()]
     numbers={(p/'dev').read_text().strip() for p in nodes}
     assert not any(line.split()[2] in numbers for line in Path('/proc/self/mountinfo').read_text().splitlines()), 'eMMC mounted'
