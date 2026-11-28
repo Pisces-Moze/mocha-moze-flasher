@@ -1,24 +1,24 @@
 # Mocha Debian r8 整合包
 
-适用于 **16 GB 小米平板 1（Mocha）**。整合包包含 Debian 镜像和 Windows x64 图形安装器。下载页面也提供 SHA-256 校验文件。
+适用于小米平板 1（Mocha）。整合包包含 Debian 镜像和 Windows x64 图形安装器。
 
-**[下载 r8 整合包及校验文件](https://github.com/Pisces-Moze/mocha-moze-flasher/releases/tag/source-candidate-20261121-r8)**（约 700 MiB）
+**[下载 r8 USB 修订预览包（约 743 MiB）](https://github.com/Pisces-Moze/mocha-moze-flasher/releases/download/source-candidate-20261122-r8-flasher-storage-preview/Mocha-Debian-r8-Flasher-USB-Fix-Windows-x64.zip)** · [SHA-256 校验文件](https://github.com/Pisces-Moze/mocha-moze-flasher/releases/download/source-candidate-20261122-r8-flasher-storage-preview/Mocha-Debian-r8-Flasher-USB-Fix-Windows-x64.zip.sha256) · [发布说明](https://github.com/Pisces-Moze/mocha-moze-flasher/releases/tag/source-candidate-20261122-r8-flasher-storage-preview)
 
 ## Windows 安装器预览版
 
-预览包与校验文件见 [Releases](https://github.com/Pisces-Moze/mocha-moze-flasher/releases)，版本标签为 `source-candidate-20261122-r8-flasher-storage-preview`。预览包沿用 r8 桌面镜像，更新了 Windows 安装器和 RAM 维护环境。[查看预览版源码](https://github.com/Pisces-Moze/mocha-moze-flasher/tree/preview/flasher-storage-usb)。双击 EXE 后允许管理员权限提示即可。原 r8 安装器在部分电脑上需右键选择「以管理员身份运行」才能识别平板。
+USB 修订版沿用 r8 桌面镜像，内置 Fastboot 37.0.1，日志会显示 RAM Fastboot 是否已连接、当前传输的文件和校验结果。安装器会请求 Windows 管理员权限。若 RAM Fastboot 无法连接，安装器会尝试修复匹配的已签名 WinUSB 驱动。维护系统的 USB 网络使用 Windows 自带的 RNDIS 驱动。
 
-预览版在 Fastboot 切换后识别失败时尝试修复匹配的已签名 Xiaomi WinUSB 驱动，并使用 Windows 自带的 RNDIS 驱动。若仍停在 `Waiting for RAM Fastboot`，让平板保持当前画面、拔插并直连数据线，然后查看安装器日志。
+若日志提示 Windows 需要重新识别设备，保持平板停在 RAM 维护画面，拔插数据线并直连电脑。若安装器已报错退出，先查看「打开日志目录」中的失败原因，再重试。
 
-预览版会读取设备的 eMMC 大小和 GPT，APP 固定 3 GiB，UDA 随实际容量变化。16／32／64 GB 布局已做模拟测试，大容量实体机刷写及物理驱动自动绑定仍待验收。
+预览版会读取设备的 eMMC 容量和 GPT，APP 固定 3 GiB，UDA 随实际容量变化。16／32／64 GB 布局已做模拟测试。USB 修订版已在一台 Mocha 上通过 RAM 启动、USB SSH、分区只读检查及 GPT／LNX 备份。修订版完整刷写、大容量实体机刷写和驱动自动绑定仍待验收。
 
 ## 安装
 
 > 刷写会清空 APP、UDA 和 cache。先另行备份个人文件。安装器保存的 GPT 和 LNX 备份不能恢复这些文件。
 
-1. 完整解压 `Mocha-Debian-r8-Windows-x64.zip`，保持 `Mocha-Flasher.exe`、`_internal` 和 `image` 在同一目录。电脑需有 Windows OpenSSH 客户端和适用的 USB 驱动。
+1. 完整解压 `Mocha-Debian-r8-Flasher-USB-Fix-Windows-x64.zip`，保持 `Mocha-Flasher.exe`、`_internal` 和 `image` 在同一目录。电脑需有 Windows OpenSSH 客户端和适用的 USB 驱动。
 2. 平板关机后按电源＋音量减进入原厂 Fastboot，用数据线直连电脑。
-3. 以管理员身份打开 `Mocha-Flasher.exe`，选择包内的 `image`。先点「检查连接和镜像」，核对后点「开始刷写」。
+3. 打开 `Mocha-Flasher.exe` 并允许管理员权限提示，选择包内的 `image`。先点「检查连接和镜像」，核对后点「开始刷写」。
 4. 写入和回读校验期间保持 USB 连接。安装器发出关机指令后，等平板关机，拔掉 USB，再按电源键开机。
 5. 首次启动直接进入桌面。默认账户和密码均为 `mocha`，登录后用 `passwd` 修改密码。
 
@@ -33,7 +33,7 @@
 
 ## 版本控制
 
-- `main` 展示当前推荐下载的 r8 整合包。r8 固定发布标签为 `source-candidate-20261121-r8`，发布包和校验文件成对使用。
+- r8 USB 修订版使用预览标签 `source-candidate-20261122-r8-flasher-storage-preview`。[原 r8 整合包](https://github.com/Pisces-Moze/mocha-moze-flasher/releases/tag/source-candidate-20261121-r8)仍可下载。请使用对应版本的 SHA-256 文件。
 - 历史版本在独立维护分支保留，可从 [r6 维护分支](https://github.com/Pisces-Moze/mocha-moze-flasher/tree/release/r6) 查阅对应说明。
 - 下方是源码构建与验证入口。源码构建使用 `sources.lock.json` 的固定提交，当前流程尚未确认可从零复现 r8 发布包。
 
