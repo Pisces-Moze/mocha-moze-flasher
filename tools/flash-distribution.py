@@ -130,12 +130,17 @@ def verify_bundle(root,allow_candidate=False):
 
 
 def output(args,timeout=30):
-    process=subprocess.run(args,capture_output=True,encoding='utf-8',errors='replace',timeout=timeout,
-                           creationflags=NO_WINDOW)
+    try:
+        process=subprocess.run(args,capture_output=True,encoding='utf-8',errors='replace',timeout=timeout,
+                               creationflags=NO_WINDOW)
+    except subprocess.TimeoutExpired as error:
+        # Some commands contain private device data. Report only the executable.
+        error.cmd=Path(args[0]).name
+        raise
     if process.returncode:
         message=(process.stdout+process.stderr)[-1200:]
         message=re.sub(r'(otf_key=)\S+',r'\1[redacted]',message)
-        raise RuntimeError(message)
+        raise RuntimeError(f'{Path(args[0]).name} exited with code {process.returncode}: {message.strip()}')
     return process.stdout+process.stderr
 
 
@@ -152,9 +157,12 @@ class Transport:
         self.known_hosts.touch(mode=0o600,exist_ok=True);restrict(self.known_hosts,0o600)
         output([a.ssh_keygen,'-q','-t','ed25519','-N','','-f',str(self.key)])
         for path in (self.key,self.key.with_suffix('.pub'),self.known_hosts):restrict(path,0o600)
+        # OpenSSH parses -o values as config directives, so quote the path
+        # inside the argument as well as passing it separately to subprocess.
+        known_hosts_option=f'UserKnownHostsFile="{self.known_hosts.as_posix()}"'
         self.ssh=[a.ssh,'-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','ConnectTimeout=8',
             '-o','ServerAliveInterval=5','-o','ServerAliveCountMax=3',
-            '-o','StrictHostKeyChecking=accept-new','-o','UserKnownHostsFile='+str(self.known_hosts),
+            '-o','StrictHostKeyChecking=accept-new','-o',known_hosts_option,
             '-i',str(self.key),'root@172.31.124.2']
         self._write_recovery()
 
@@ -255,6 +263,7 @@ class Transport:
                 if len(devices)==1:
                     self.serial=devices[0]
                     if 'U-Boot' in self.fb('getvar','version-bootloader',timeout=4):
+                        print(f'RAM Fastboot connected ({self.serial}).',flush=True)
                         return
             except (RuntimeError,subprocess.TimeoutExpired):
                 pass
@@ -299,6 +308,7 @@ class Transport:
         if any(a[1]>b[0] for a,b in zip(ranges,ranges[1:])) or ranges[-1][1]>=0x91000000:
             raise RuntimeError('RAM payload addresses overlap')
         for path,address in payloads:
+            print(f'Sending {path.name} to RAM ({path.stat().st_size / 1024**2:.1f} MiB)...',flush=True)
             self.fb('stage',str(path),timeout=120)
             self.oem(f'cp.b 91000000 {address:x} {path.stat().st_size:x}')
             result=self.oem(f'crc32 {address:x} {path.stat().st_size:x}')
@@ -307,6 +317,7 @@ class Transport:
                 while data:=stream.read(1024*1024):crc=zlib.crc32(data,crc)
             match=re.findall(r'==>\s*([0-9a-fA-F]{8})',result)
             if not match or int(match[-1],16)!=crc:raise RuntimeError('RAM CRC mismatch: '+path.name)
+            print(f'{path.name}: RAM transfer verified.',flush=True)
         for command in ('setenv verify yes','setenv fdt_high ffffffff','setenv initrd_high ffffffff',
                         'fdt addr 8c000000','fdt resize 10000','setenv bootargs mem=1700M rdinit=/init'):
             self.oem(command)

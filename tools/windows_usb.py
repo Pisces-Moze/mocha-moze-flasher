@@ -131,6 +131,8 @@ def repair_usb(stage):
             else:
                 code = pnp('/add-driver', driver, '/install')
             print(f'Windows driver repair exited with code {code}.', flush=True)
+            if stage == 'fastboot' and code == 2:
+                print('Windows needs to re-enumerate the device. Unplug and reconnect the USB cable while the tablet stays in RAM Fastboot.', flush=True)
         elif stage == 'fastboot' and device['status'] == 'OK' and 'bootloader' in (device['name'] or '').lower():
             code = pnp('/restart-device', device['id'])
             print(f'Windows USB device restart exited with code {code}.', flush=True)
